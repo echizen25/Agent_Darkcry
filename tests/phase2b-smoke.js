@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdir, mkdtemp, writeFile, rm, stat } from 'node:fs/promises';
+import path from 'node:path';
+
+const run = promisify(execFile);
+const base = process.env.TEST_URL || 'http://127.0.0.1:3004';
+const dataRoot = path.resolve('data');
+await mkdir(dataRoot, { recursive: true });
+const fixture = await mkdtemp(path.join(dataRoot, 'repo-fixture-'));
+const git = (...args) => run('git', args, { cwd: fixture });
+const call = async (route, options) => {
+  const response = await fetch(base + route, options);
+  return { status: response.status, data: response.status === 204 ? null : response.headers.get('content-type')?.includes('json') ? await response.json() : await response.text() };
+};
+const post = (location, branch = 'main') => call('/api/repositories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location, branch }) });
+
+try {
+  await git('init', '-b', 'main');
+  await git('config', 'user.email', 'test@example.invalid');
+  await git('config', 'user.name', 'Fixture');
+  await mkdir(path.join(fixture, 'src', 'routes'), { recursive: true });
+  await mkdir(path.join(fixture, 'node_modules', 'noise'), { recursive: true });
+  await mkdir(path.join(fixture, 'dist'), { recursive: true });
+  await writeFile(path.join(fixture, '.gitignore'), 'node_modules/\ndist/\n');
+  await writeFile(path.join(fixture, 'README.md'), '# Fixture project\n');
+  await writeFile(path.join(fixture, 'package.json'), '{"name":"fixture"}\n');
+  await writeFile(path.join(fixture, 'src', 'routes', 'users.js'), 'export const usersRoute = "/users";\n');
+  await writeFile(path.join(fixture, 'schema.sql'), 'CREATE TABLE users (id INTEGER);\n');
+  await writeFile(path.join(fixture, '.env'), 'PASSWORD=do-not-expose\n');
+  await writeFile(path.join(fixture, 'credentials.json'), '{"token":"do-not-expose"}\n');
+  await writeFile(path.join(fixture, 'node_modules', 'noise', 'bad.js'), 'ignored dependency\n');
+  await writeFile(path.join(fixture, 'dist', 'bundle.js'), 'ignored build\n');
+  await git('add', 'README.md', 'package.json', 'src/routes/users.js', 'schema.sql', '.gitignore');
+  await git('commit', '-m', 'fixture');
+  const added = await post(fixture);
+  assert.equal(added.status, 201, JSON.stringify(added.data));
+  assert.equal(added.data.branch, 'main');
+  assert.match(added.data.commit, /^[0-9a-f]{40}$/);
+  assert.equal(added.data.analysisStatus, 'ready');
+  assert.ok(added.data.summary.readme);
+  assert.ok(added.data.summary.routeFiles.includes('src/routes/users.js'));
+  assert.ok(added.data.summary.databaseFiles.includes('schema.sql'));
+  const id = added.data.id;
+  const files = (await call(`/api/repositories/${id}/files`)).data.files;
+  assert.ok(files.some(file => file.path === 'src/routes/users.js'));
+  assert.ok(files.every(file => !/node_modules|dist|\.env|credentials/i.test(file.path)));
+  assert.ok(files.every(file => !('content' in file)));
+  const routeFile = files.find(file => file.path === 'src/routes/users.js');
+  assert.match((await call(`/api/repositories/${id}/files/${routeFile.id}`)).data.content, /usersRoute/);
+  assert.equal((await call(`/api/repositories/${id}/files?q=users`)).data.files.length, 1);
+  assert.ok((await call('/api/repositories')).data.repositories.some(repo => repo.id === id));
+  const repeated = await post(fixture);
+  assert.equal(repeated.status, 200);
+  assert.equal(repeated.data.id, id);
+  const notes = await call('/api/sources/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: 'Document source still works' }) });
+  assert.equal(notes.status, 201);
+  assert.match((await call(`/api/sources/${notes.data.id}`)).data.content, /still works/);
+  await call(`/api/sources/${notes.data.id}`, { method: 'DELETE' });
+  const uploadBody = new FormData();
+  uploadBody.append('files', new Blob(['Document upload still works']), 'regression.txt');
+  const uploaded = await call('/api/sources/upload', { method: 'POST', body: uploadBody });
+  assert.equal(uploaded.status, 201);
+  const sourceId = uploaded.data.sources[0].id;
+  assert.match((await call(`/api/sources/${sourceId}`)).data.content, /Document upload still works/);
+  await call(`/api/sources/${sourceId}`, { method: 'DELETE' });
+  assert.equal((await call(`/api/repositories/${id}`, { method: 'DELETE' })).status, 204);
+  assert.equal((await call(`/api/repositories/${id}/files`)).status, 404);
+  assert.ok((await stat(fixture)).isDirectory(), 'Deleting local source must not delete local repository');
+  console.log('Passed: local repo, branch, commit, discovery, ignores, secrets, preview, filter, reuse, delete, document source');
+} finally {
+  if (fixture.startsWith(dataRoot + path.sep)) await rm(fixture, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+}
