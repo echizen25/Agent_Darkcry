@@ -32,9 +32,9 @@ export class Orchestrator {
     if (goal.length > 1000) throw error(400, 'Goal is too long.');
     if (options.maxIterations !== undefined && (!Number.isInteger(options.maxIterations) || options.maxIterations < 1)) throw error(400, 'maxIterations must be a positive integer.');
     const job = {
-      jobId: randomUUID(), projectId: options.projectId || randomUUID(), goal: goal.trim(), status: 'QUEUED',
+      jobId: randomUUID(), projectId: options.projectId || randomUUID(), goal: goal.trim(), kind: options.kind === 'research' ? 'research' : 'demo', status: 'QUEUED',
       createdAt: now(), startedAt: null, completedAt: null, tasks: [], currentTaskId: null,
-      iteration: 0, maxIterations: options.maxIterations ?? 10, failureReason: null, metadata: {},
+      iteration: 0, maxIterations: options.maxIterations ?? 10, failureReason: null, metadata: options.metadata || {},
       issues: [], events: [], finalReview: null
     };
     this.store.createJob(job);
@@ -56,8 +56,8 @@ export class Orchestrator {
         taskId: ids.get(item.key), jobId: job.jobId, projectId: job.projectId, key: item.key,
         type: item.type, title: item.title, objective: item.objective, assignedAgent: item.assignedAgent,
         dependencies: item.dependsOn.map(key => ids.get(key)), requiredInputs: [], expectedOutputs: item.expectedOutputs || [],
-        acceptanceCriteria: item.acceptanceCriteria, allowedTools: item.allowedTools || [], scope: item.scope || {}, contextBudget: { maxInputTokens: 2000, maxRetrievedSources: 0 },
-        timeout: 30000, status: 'QUEUED', priority: 0, attempt: 0, maxAttempts: item.maxAttempts ?? 2,
+        acceptanceCriteria: item.acceptanceCriteria, evaluatorId: item.evaluatorId || 'deterministic', allowedTools: item.allowedTools || [], scope: item.scope || {}, contextBudget: item.contextBudget || { maxInputTokens: 2000, maxRetrievedSources: 0 },
+        timeout: item.timeout || 30000, status: 'QUEUED', priority: 0, attempt: 0, maxAttempts: item.maxAttempts ?? 2,
         result: null, issues: [], validations: [], runs: [], repairGuidance: null, pendingApprovalId: null, failureReason: null,
         createdAt: now(), startedAt: null, completedAt: null
       };
@@ -69,6 +69,7 @@ export class Orchestrator {
     }
     return job.tasks.filter(task => task.status === 'READY').sort((a, b) => b.priority - a.priority);
   }
+  workflow(job) { return job.kind === 'research' ? { plannerId: 'research.planner', criticId: 'research.critic', reviewerId: 'research.finalReviewer' } : { plannerId: this.plannerId, criticId: this.criticId, reviewerId: this.reviewerId }; }
   async run(id) {
     const job = this.getJob(id);
     if (this.active.has(id)) throw error(409, 'Job is already running.');
@@ -76,7 +77,7 @@ export class Orchestrator {
     this.active.add(id);
     try {
       this.change(job, job, 'PLANNING');
-      const plan = await withTimeout(this.agents.get(this.plannerId).execute({ goal: job.goal, projectId: job.projectId }), 30000);
+      const plan = await withTimeout(this.agents.get(this.workflow(job).plannerId).execute({ goal: job.goal, projectId: job.projectId, research: job.metadata.research }), 30000);
       if (plan.status !== 'completed') throw new Error('Planner did not complete.');
       job.tasks = this.makeTasks(job, plan.data?.tasks);
       this.event(job, 'PLAN_CREATED', null, { taskCount: job.tasks.length });
@@ -107,7 +108,7 @@ export class Orchestrator {
       if (job.status === 'RUNNING') {
         this.change(job, job, 'VALIDATING');
         this.event(job, 'FINAL_REVIEW_STARTED');
-        const review = await withTimeout(this.agents.get(this.reviewerId).execute({ job, artifacts: this.artifacts.list(job.jobId), approvals: this.store.listApprovals(job.jobId) }), 30000);
+        const review = await withTimeout(this.agents.get(this.workflow(job).reviewerId).execute({ job, artifacts: this.artifacts.list(job.jobId), approvals: this.store.listApprovals(job.jobId) }), 30000);
         job.finalReview = review;
         if (review.status === 'completed' && review.data?.passed === true) {
           this.event(job, 'FINAL_REVIEW_PASSED'); this.change(job, job, 'COMPLETED'); this.event(job, 'JOB_COMPLETED');
@@ -157,11 +158,12 @@ export class Orchestrator {
       const agent = this.agents.get(task.assignedAgent);
       const context = {
         task: { taskId: task.taskId, key: task.key, objective: task.objective, requiredInputs: task.requiredInputs, expectedOutputs: task.expectedOutputs, allowedTools: task.allowedTools, contextBudget: task.contextBudget },
-        attempt: task.attempt, projectState: { projectId: job.projectId }, retrievedKnowledge: [],
+        jobId: job.jobId, attempt: task.attempt, projectState: { projectId: job.projectId }, retrievedKnowledge: [],
         artifactReferences: this.artifacts.list(job.jobId).map(item => item.artifactId),
         previousResults: job.tasks.filter(item => item.status === 'COMPLETED').map(item => ({ key: item.key, data: item.result?.data })),
         repairGuidance: task.repairGuidance,
-        requestTool: request => this.tools.request({ job, task, agent, ...request, approvalId: task.pendingApprovalId, emit: (type, details) => this.event(job, type, task, details) })
+        emitEvent: (type, details) => this.event(job, type, task, details),
+        requestTool: request => this.tools.request({ ...request, job, task, agent, approvalId: task.pendingApprovalId, emit: (type, details) => this.event(job, type, task, details) })
       };
       const result = await withTimeout(agent.execute(context), task.timeout);
       if (result?.status === 'waitingForApproval') {
@@ -172,7 +174,7 @@ export class Orchestrator {
       if (result?.status !== 'completed') throw new Error(`Agent ${task.assignedAgent} did not complete.`);
       run.result = result; task.result = result; this.event(job, 'TASK_RESULT_RECEIVED', task, { summary: result.summary });
       this.change(job, task, 'VALIDATING'); this.event(job, 'EVALUATION_STARTED', task);
-      const validation = this.evaluation.evaluate({ result, criteria: task.acceptanceCriteria, context: { job, task } });
+      const validation = this.evaluation.evaluate({ evaluatorId: task.evaluatorId, result, criteria: task.acceptanceCriteria, context: { job, task } });
       run.validation = validation; run.completedAt = now(); task.validations.push(validation);
       this.event(job, 'EVALUATION_COMPLETED', task, { evaluationId: validation.evaluationId, status: validation.status });
       if (validation.status === 'pass') {
@@ -190,7 +192,7 @@ export class Orchestrator {
       if (progress.detected) { this.event(job, 'ISSUE_FINGERPRINT_REPEATED', task, { fingerprints: progress.fingerprints }); this.event(job, 'NO_PROGRESS_DETECTED', task); task.failureReason = 'No progress on repeated evaluation issues.'; break; }
       if (task.attempt >= task.maxAttempts || job.iteration >= job.maxIterations) break;
       this.change(job, task, 'REVISING'); this.event(job, 'CRITIC_STARTED', task);
-      const critique = await withTimeout(this.agents.get(this.criticId).execute({ task: { objective: task.objective, acceptanceCriteria: task.acceptanceCriteria }, previousResult: result, evaluation: validation, validation, issueHistory: task.issues, attempt: task.attempt, remainingAttempts: Math.min(task.maxAttempts - task.attempt, job.maxIterations - job.iteration) }), task.timeout);
+      const critique = await withTimeout(this.agents.get(this.workflow(job).criticId).execute({ task: { objective: task.objective, acceptanceCriteria: task.acceptanceCriteria }, previousResult: result, evaluation: validation, validation, issueHistory: task.issues, attempt: task.attempt, remainingAttempts: Math.min(task.maxAttempts - task.attempt, job.maxIterations - job.iteration) }), task.timeout);
       if (critique.status !== 'completed') throw new Error('Critic did not complete.');
       if (critique.data?.retryRecommended === false) { task.failureReason = critique.data.diagnosis || 'Critic advised against retry.'; break; }
       if (!critique.data?.repairInstructions?.length) throw new Error('Critic did not provide repair guidance.');

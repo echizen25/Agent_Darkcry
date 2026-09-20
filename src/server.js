@@ -36,7 +36,7 @@ app.use(express.static(path.join(root, 'public')));
 app.get('/', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/sources', sourceRouter(root));
 app.use('/api/repositories', repositoryRouter(root));
-app.use('/api/agent', agentRouter(createAgentCore()));
+app.use('/api/agent', agentRouter(createAgentCore({ knowledge, models })));
 app.use('/api/models', modelRouter(models));
 app.use('/api/knowledge', knowledgeRouter(knowledge));
 app.post('/api/presentations/generate', async (req, res) => {

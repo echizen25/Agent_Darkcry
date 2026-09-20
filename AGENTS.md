@@ -2,7 +2,7 @@
 
 Goal: Generate professional, visually strong, fully editable PPTX presentations.
 
-Stack: Node.js, Express, PptxGenJS, and vanilla HTML/CSS/JS. AI may later use Ollama and optionally OpenAI; do not implement AI yet.
+Stack: Node.js, Express, PptxGenJS, and vanilla HTML/CSS/JS. Local AI uses Ollama through the Model Gateway when configured; OpenAI remains optional for a later phase.
 
 - Separate presentation planning and content from PPTX rendering.
 - Prefer reusable layouts and helpers over duplicated slide code.

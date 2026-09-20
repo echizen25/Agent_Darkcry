@@ -16,7 +16,7 @@ Each retrieved passage should carry applicable fields: sourceId, sourceType, fil
 
 ## Model Gateway and Tool Registry
 
-An eventual Model Gateway centralizes provider settings, model selection, request limits, and usage records. Ollama is the intended first provider; OpenAI and compatible providers remain optional. Agent definitions express model needs, but use one gateway interface. A strong reasoning model may serve planning/review, while smaller local models may serve extraction or formatting. No model integration exists today.
+The Model Gateway centralizes provider settings, model selection, request limits, and usage records. Ollama is the first optional provider; OpenAI and compatible providers remain future options. Research agents use the gateway interface rather than provider-specific calls.
 
 A permission-aware Tool Registry declares tool ID, capability, risk class, allowed agent types, required permissions, and approval requirement. Prefer API, then CLI, then programmatic integration, then GUI/computer use when practical. Potential adapters include filesystem, Git, source ingestion, retrieval, models, browser, PowerPoint, office documents, image, FFmpeg, and approved desktop apps. Tool calls and approvals pass through a policy check before execution. Computer use is an optional future adapter with an application allowlist, workspace limits, action log, screenshots/checkpoints, timeout, emergency stop, and approval gates. It must not bypass security controls, silently publish, or silently delete.
 

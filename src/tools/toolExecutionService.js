@@ -41,16 +41,17 @@ export class ToolExecutionService {
     run.permissionDecision = 'ALLOW'; emit('TOOL_PERMISSION_ALLOWED', { toolRunId: run.toolRunId, toolId });
     run.startedAt = new Date().toISOString(); run.status = 'RUNNING'; emit('TOOL_EXECUTION_STARTED', { toolRunId: run.toolRunId, toolId });
     try {
-      const result = await tool.execute(input);
+      const result = await tool.execute(input, { job, task, agent });
       if (result?.status !== 'success') throw new Error('Tool returned an unsuccessful result.');
       if (approval) approval.consumedAt = new Date().toISOString();
       finish('SUCCESS', null, `${toolId} completed.`);
       emit('TOOL_EXECUTION_COMPLETED', { toolRunId: run.toolRunId, toolId });
       return result;
-    } catch {
-      finish('ERROR', 'TOOL_EXECUTION_FAILED', 'Tool execution failed.');
-      emit('TOOL_EXECUTION_FAILED', { toolRunId: run.toolRunId, errorCode: 'TOOL_EXECUTION_FAILED' });
-      return responseError('TOOL_EXECUTION_FAILED', 'Tool execution failed.');
+    } catch (cause) {
+      const code = ['MODEL_NOT_FOUND', 'EMBEDDING_FAILED', 'VECTOR_STORE_UNAVAILABLE', 'VECTOR_DIMENSION_MISMATCH'].includes(cause.code) ? cause.code : 'TOOL_EXECUTION_FAILED';
+      finish('ERROR', code, 'Tool execution failed.');
+      emit('TOOL_EXECUTION_FAILED', { toolRunId: run.toolRunId, errorCode: code });
+      return responseError(code, code === 'TOOL_EXECUTION_FAILED' ? 'Tool execution failed.' : cause.message);
     }
   }
 }
