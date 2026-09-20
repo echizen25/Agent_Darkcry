@@ -1,6 +1,6 @@
 # Job and task state machine
 
-These rules define a future engine. Invalid transitions must be rejected and logged; no state is inferred from a UI label alone.
+Agent Core V1 enforces these transitions for its demo workflow. Approval and cancellation flows remain future work. Invalid transitions must be rejected and logged; no state is inferred from a UI label alone.
 
 | State | Meaning | Legal next states |
 | --- | --- | --- |

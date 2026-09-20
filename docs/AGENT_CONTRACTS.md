@@ -1,6 +1,6 @@
 # Proposed contracts
 
-These are versioned design contracts; no runtime schema or database is implemented. Identifiers are opaque strings. Timestamps are ISO 8601 UTC. Persist references to large content instead of embedding it in task or agent records.
+These are design contracts. Agent Core V1 implements a subset with in-memory records; no database or general runtime schema system exists. Identifiers are opaque strings. Timestamps are ISO 8601 UTC. Persist references to large content instead of embedding it in task or agent records.
 
 ## Task
 

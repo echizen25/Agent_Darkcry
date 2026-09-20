@@ -8,6 +8,7 @@ import { planPresentation } from './planner.js';
 import { renderPresentation } from './renderer.js';
 import { sourceRouter } from './sources.js';
 import { repositoryRouter } from './repositories.js';
+import { agentRouter, createAgentCore } from './core/agentRouter.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = path.join(root, 'generated');
@@ -17,6 +18,7 @@ app.use(express.static(path.join(root, 'public')));
 app.get('/', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/sources', sourceRouter(root));
 app.use('/api/repositories', repositoryRouter(root));
+app.use('/api/agent', agentRouter(createAgentCore()));
 app.post('/api/presentations/generate', async (req, res) => {
   try {
     const plan = planPresentation(req.body);

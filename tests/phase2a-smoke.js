@@ -69,4 +69,8 @@ assert.equal((await call('/api/sources/upload', { method: 'POST', body: bad })).
 const generated = await call('/api/presentations/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic: 'Phase 2A regression', slideCount: 5 }) });
 assert.equal(generated.status, 201);
 assert.equal(generated.data.outline.length, 5);
+const downloaded = await fetch(base + generated.data.downloadUrl);
+assert.equal(downloaded.status, 200);
+const pptxZip = await JSZip.loadAsync(await downloaded.arrayBuffer());
+assert.equal(Object.keys(pptxZip.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name)).length, 5);
 console.log('Passed: health, TXT, MD, DOCX, PPTX, XLSX, PDF, notes, list, multiple upload, delete, rejection, presentation generation');

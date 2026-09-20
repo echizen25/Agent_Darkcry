@@ -1,6 +1,6 @@
 # AI Production Studio: proposed architecture
 
-This is a design for a future local-first platform, not a description of implemented agents. The current PowerPoint Agent remains operational as the first production capability. See [ARCHITECTURE.md](ARCHITECTURE.md) for its present boundaries, [AGENT_CONTRACTS.md](AGENT_CONTRACTS.md) for records and interfaces, [JOB_STATE_MACHINE.md](JOB_STATE_MACHINE.md) for execution rules, and [ROADMAP.md](ROADMAP.md) for migration.
+This is the design for a local-first platform. Agent Core V1 implements deterministic demo agents and in-memory orchestration; the current PowerPoint Agent remains operational as the first production capability. See [ARCHITECTURE.md](ARCHITECTURE.md) for its present boundaries, [AGENT_CONTRACTS.md](AGENT_CONTRACTS.md) for records and interfaces, [JOB_STATE_MACHINE.md](JOB_STATE_MACHINE.md) for execution rules, and [ROADMAP.md](ROADMAP.md) for migration.
 
 ## Coordination
 

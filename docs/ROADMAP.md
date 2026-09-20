@@ -1,6 +1,6 @@
 # Incremental migration roadmap
 
-Each phase preserves the current presentation and source endpoints and has a testable exit gate. No implementation phase below has started.
+Each phase preserves the current presentation and source endpoints and has a testable exit gate. Phase 1 design is approved; Phase 2 Agent Core V1 implements the deterministic, in-memory subset.
 
 | Phase | Deliverable | Exit gate |
 | --- | --- | --- |
