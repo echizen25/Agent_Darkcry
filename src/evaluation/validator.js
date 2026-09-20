@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 const field = (result, name) => name?.split('.').reduce((value, part) => value?.[part], result.data);
-const issue = (type, description, suggestedAction) => ({ issueId: randomUUID(), severity: 'high', type, description, suggestedAction });
+const issue = (type, description, suggestedAction, criterion) => ({ issueId: randomUUID(), severity: 'HIGH', category: 'VALIDATION', location: criterion.params?.field || null, criterionId: criterion.validatorId, type, description, evidence: criterion.params?.field ? [{ type: 'taskResult', field: criterion.params.field }] : [], suggestedAction });
 
 export function validate(result, criteria) {
   if (!Array.isArray(criteria) || !criteria.length) throw new Error('Acceptance criteria are required.');
@@ -10,15 +10,15 @@ export function validate(result, criteria) {
     const { validatorId, params = {} } = criterion;
     const value = field(result, params.field);
     if (validatorId === 'result.fieldExists') {
-      if (value === undefined || value === null) issues.push(issue('field_missing', `${params.field} is required.`, `Provide ${params.field}.`));
+      if (value === undefined || value === null) issues.push(issue('field_missing', `${params.field} is required.`, `Provide ${params.field}.`, criterion));
     } else if (validatorId === 'result.nonEmpty') {
-      if (typeof value !== 'string' || !value.trim()) issues.push(issue('empty_result', `${params.field} must be non-empty.`, `Provide non-empty ${params.field}.`));
+      if (typeof value !== 'string' || !value.trim()) issues.push(issue('empty_result', `${params.field} must be non-empty.`, `Provide non-empty ${params.field}.`, criterion));
     } else if (validatorId === 'result.minimumLength') {
-      if (typeof value !== 'string' || value.trim().length < params.value) issues.push(issue('minimum_length_failed', `${params.field} must contain at least ${params.value} characters.`, `Provide complete ${params.field}.`));
+      if (typeof value !== 'string' || value.trim().length < params.value) issues.push(issue('minimum_length_failed', `${params.field} must contain at least ${params.value} characters.`, `Provide complete ${params.field}.`, criterion));
     } else if (validatorId === 'result.equals') {
-      if (value !== params.value) issues.push(issue('value_mismatch', `${params.field} must equal the required value.`, `Set ${params.field} to the required value.`));
+      if (value !== params.value) issues.push(issue('value_mismatch', `${params.field} must equal the required value.`, `Set ${params.field} to the required value.`, criterion));
     } else if (validatorId === 'artifact.exists') {
-      if (!result.artifacts?.some(artifact => artifact.type === params.type && (artifact.value !== undefined || artifact.path))) issues.push(issue('artifact_missing', `Artifact ${params.type} is required.`, `Produce the ${params.type} artifact.`));
+      if (!result.artifacts?.some(artifact => artifact.type === params.type && (artifact.value !== undefined || artifact.path))) issues.push(issue('artifact_missing', `Artifact ${params.type} is required.`, `Produce the ${params.type} artifact.`, criterion));
     } else throw new Error(`Unknown validator: ${validatorId}`);
   }
   return { evaluationId: randomUUID(), status: issues.length ? 'fail' : 'pass', score: null, issues, evidence: [] };

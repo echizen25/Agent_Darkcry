@@ -1,8 +1,7 @@
 # Current State
 
-- **Current phase:** Agent Core V1.
-- **What currently works:** Presentation generation, document/notes and Git ingestion, plus the deterministic Agent Core demo API.
-- **Current task:** Deterministic in-memory Orchestrator, state checks, Agent Registry, validator, artifact registry, and demo Planner/Worker/Critic/Final Reviewer. API: `POST/GET /api/agent/jobs`, `GET /api/agent/jobs/:id`, `POST /api/agent/jobs/:id/run`. Demo retries once after critic guidance, then validates and completes.
-- **Tests:** 24 Agent Core tests pass; existing document, repository, frontend, and PPTX smoke tests pass.
-- **Next task:** Review V1 before implementing later phases.
-- **Known issues:** Agent jobs disappear on restart. Generation does not use sources; scanned PDFs need OCR. Repository analysis is capped at 500 files and 20 MB of text.
+- **Current phase:** Phase 3 Tool Registry, Permission System, and Evaluation Core.
+- **What currently works:** Existing presentation and source ingestion flows; deterministic Agent Core; registered demo tools (SAFE, CONTROLLED, HIGH_RISK); scoped permission decisions; in-memory approvals and ToolRun history; approval pause, approve/resume, and deny/block. The Evaluation Core supports registered deterministic evaluators, configurable blocking severities, issue fingerprints, attempt history, no-progress stopping, critic guidance, and final review.
+- **Current task:** Phase 3 verification and review. Approval APIs: `GET /api/agent/approvals`, `GET /api/agent/approvals/:id`, `POST /api/agent/approvals/:id/approve`, `POST /api/agent/approvals/:id/deny`.
+- **Next task:** User review before a later roadmap phase.
+- **Known issues:** Agent jobs, approvals, and ToolRuns disappear on restart. Generation does not use sources; scanned PDFs need OCR. Repository analysis is capped at 500 files and 20 MB of text. No approval UI or real privileged tools exist yet.

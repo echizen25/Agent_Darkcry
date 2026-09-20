@@ -1,6 +1,6 @@
 # Job and task state machine
 
-Agent Core V1 enforces these transitions for its demo workflow. Approval and cancellation flows remain future work. Invalid transitions must be rejected and logged; no state is inferred from a UI label alone.
+Agent Core enforces these transitions for its demo workflow. Approval pause, approval resume, and denial to `BLOCKED` are implemented; cancellation remains future work. Invalid transitions must be rejected and logged; no state is inferred from a UI label alone.
 
 | State | Meaning | Legal next states |
 | --- | --- | --- |
@@ -21,6 +21,8 @@ For a job, `COMPLETED` requires all required tasks completed, artifacts validate
 ## Bounded execution loop
 
 Plan → execute → validate. On pass, send the task to final review or release its dependents. On failure, the Critic records evidence and diagnosis, creates a repair plan, then the task enters `REVISING` and runs again. Preserve every run and validation result. Stop or escalate on `maxAttempts`, task/job timeout, token/context budget exhaustion, repeated identical error, no progress, duplicate action, unmet dependency, or approval requirement. A blocker enters `BLOCKED`; an exhausted or unrecoverable task enters `FAILED`. Neither condition loops automatically forever. Human intervention may supply missing input or approve a specific operation.
+
+Evaluation issues use `INFO`, `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`. The Phase 3 default blocks on `HIGH` and `CRITICAL`; lower severities can pass with an artifact warning. The blocking set and repeated-fingerprint threshold are configurable.
 
 ## Approval classes
 
