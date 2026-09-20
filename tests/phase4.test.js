@@ -49,8 +49,10 @@ test('Ollama adapter normalizes mocked health, model list, chat, and embeddings'
   assert.equal(await provider.health(), true);
   assert.deepEqual(await provider.listModels(), ['local-chat']);
   assert.equal((await provider.generate({ model: 'local-chat', prompt: 'hello', systemInstruction: 'Policy', temperature: 0 })).content, 'Local answer');
+  await provider.generate({ model: 'local-chat', prompt: 'JSON', responseFormat: 'json' });
   assert.deepEqual(await provider.embed({ model: 'embed', texts: ['hello'] }), [[0.1, 0.2]]);
   assert.equal(JSON.parse(requests[2].options.body).messages[0].role, 'system');
+  assert.equal(JSON.parse(requests[3].options.body).format, 'json');
 });
 
 test('normalization, structure-aware chunks, token estimate, and provenance', () => {

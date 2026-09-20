@@ -24,7 +24,8 @@ async function fixture(mode = 'grounded') {
     if (mode === 'malformed') return { content: 'not JSON' };
     const bad = mode === 'unsupported' || mode === 'repair' && calls === 1;
     const claim = { text: bad ? 'Unicorn powers authentication.' : item.text, evidence: [{ chunkId: item.chunkId, quote: item.text }] };
-    return { content: JSON.stringify({ claims: [claim] }), usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 } };
+    const content = JSON.stringify({ claims: [claim] });
+    return { content: mode === 'fenced' ? `\`\`\`json\n${content}\n\`\`\`` : content, usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 } };
   } };
   const registry = new ModelRegistry(); registry.register({ modelId: 'fake-chat', providerId: 'fake', displayName: 'Fake chat', capabilities: ['chat'], purposes: ['RESEARCH'], enabled: true });
   const models = new ModelGateway({ registry }); models.registerProvider(provider);
@@ -58,6 +59,12 @@ test('research job retrieves Alpha evidence through read-only tool and completes
   assert.ok(result.tasks[0].result.data.retrievedContext.items.every(item => item.sourceId !== 'C' && item.projectId === undefined));
   assert.equal(models.calls[0].projectId, 'Alpha'); assert.equal(models.calls[0].agentId, 'research.knowledge');
   assert.ok(result.events.some(item => item.type === 'EVALUATION_COMPLETED'));
+});
+
+test('research accepts a single fenced JSON response', async () => {
+  const { core } = await fixture('fenced');
+  const job = core.createJob('How does authentication work?', { projectId: 'Alpha', kind: 'research' });
+  assert.equal((await core.run(job.jobId)).status, 'COMPLETED');
 });
 
 test('agent tool request cannot override job scope or obtain an unallowed tool', async () => {

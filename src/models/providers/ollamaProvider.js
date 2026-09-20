@@ -7,9 +7,9 @@ export class OllamaProvider {
   }
   async health() { try { await this.call('/api/tags'); return true; } catch { return false; } }
   async listModels() { const result = await this.call('/api/tags'); return (result.models || []).map(item => item.name); }
-  async generate({ model, messages, prompt, systemInstruction, temperature, maxOutputTokens, signal }) {
+  async generate({ model, messages, prompt, systemInstruction, temperature, maxOutputTokens, responseFormat, signal }) {
     const turns = [...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []), ...(messages || (prompt ? [{ role: 'user', content: prompt }] : []))];
-    const result = await this.call('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: turns, stream: false, options: { temperature, ...(maxOutputTokens ? { num_predict: maxOutputTokens } : {}) } }), signal });
+    const result = await this.call('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: turns, stream: false, ...(responseFormat === 'json' ? { format: 'json' } : {}), options: { temperature, ...(maxOutputTokens ? { num_predict: maxOutputTokens } : {}) } }), signal });
     return { content: result.message?.content, usage: { inputTokens: result.prompt_eval_count ?? null, outputTokens: result.eval_count ?? null, totalTokens: result.prompt_eval_count != null && result.eval_count != null ? result.prompt_eval_count + result.eval_count : null }, metadata: {} };
   }
   async embed({ model, texts, signal }) {

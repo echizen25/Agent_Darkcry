@@ -10,7 +10,7 @@ export class ModelGateway {
   providersList() { return [...this.providers.values()].map(item => ({ id: item.id, capabilities: item.capabilities || [] })); }
   async health() { return Promise.all([...this.providers.values()].map(async provider => ({ providerId: provider.id, available: await provider.health().catch(() => false) }))); }
   async models() { return this.registry.list(); }
-  async request({ capability = 'chat', modelId, messages, prompt, systemInstruction, temperature, maxOutputTokens, timeout, metadata = {}, projectId = null, jobId = null, taskId = null, agentId = null, purpose = 'GENERAL' }) {
+  async request({ capability = 'chat', modelId, messages, prompt, systemInstruction, temperature, maxOutputTokens, responseFormat, timeout, metadata = {}, projectId = null, jobId = null, taskId = null, agentId = null, purpose = 'GENERAL' }) {
     const started = Date.now();
     const record = { modelCallId: randomUUID(), projectId, jobId, taskId, agentId, provider: null, model: modelId || null, purpose, startedAt: new Date().toISOString(), completedAt: null, durationMs: null, status: 'RUNNING', estimatedInputTokens: estimateTokens(JSON.stringify(messages || prompt || '')), usage: null, errorCode: null };
     this.calls.push(record); this.events.push({ type: 'MODEL_REQUEST_STARTED', modelCallId: record.modelCallId });
@@ -22,7 +22,7 @@ export class ModelGateway {
       const timer = setTimeout(() => controller.abort(), timeout || this.timeoutMs);
       let raw;
       try {
-        const call = provider.generate({ model: model.modelId, messages, prompt, systemInstruction, temperature: temperature ?? model.defaultTemperature ?? 0, maxOutputTokens, metadata, signal: controller.signal });
+        const call = provider.generate({ model: model.modelId, messages, prompt, systemInstruction, temperature: temperature ?? model.defaultTemperature ?? 0, maxOutputTokens, responseFormat, metadata, signal: controller.signal });
         raw = await Promise.race([call, new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(Object.assign(new Error('Model timed out.'), { name: 'AbortError' })), { once: true }))]);
       }
       finally { clearTimeout(timer); }
