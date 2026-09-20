@@ -1,0 +1,11 @@
+# Knowledge Hub and Model Gateway
+
+Phase 4 keeps source extraction and repository scanning in their existing modules. Adapters read their stored records and create project-scoped documents. PDF pages, PPTX slides, XLSX sheets, and repository files remain separate documents with available provenance. Source text is normalized, chunked at paragraph or code-line boundaries where possible, embedded, then indexed.
+
+The Model Gateway registers providers and models, normalizes generation responses and errors, applies timeouts, and records calls without prompts. Ollama is the first provider. Configure chat and embedding models explicitly; the app never downloads models. The Embedding Gateway validates numeric vectors and consistent dimensions.
+
+The vector-store interface has in-memory and Qdrant implementations. Qdrant uses one sanitized shared collection with a mandatory `projectId` payload filter for search and deletion. The Knowledge Hub checks returned project IDs again. The in-memory store supports the same project filter for tests. Context building ranks results, removes exact duplicates, enforces estimated token and chunk limits, and retains provenance. Token counts approximate four characters per token; actual model tokenization may differ. Retrieved text is untrusted data and cannot become system instructions or tool permission.
+
+APIs: `POST /api/knowledge/index/source/:sourceId`, `POST /api/knowledge/index/repository/:repositoryId`, `POST /api/knowledge/query`, `GET /api/knowledge/status`, `DELETE /api/knowledge/source/:sourceId`, `DELETE /api/knowledge/project/:projectId`; diagnostics: `GET /api/models/providers`, `GET /api/models`, `GET /api/models/health`. Index and source-delete requests require `projectId` in JSON. Existing source and repository records are never deleted by knowledge deletion.
+
+Configuration is in [.env.example](../.env.example). Ollama and Qdrant are optional at startup; operations requiring an unavailable service return structured errors. Indexed vectors persist in Qdrant, while the process-local document counter, events, and model-call history reset on restart. Knowledge is not yet supplied to production agents or presentation generation.

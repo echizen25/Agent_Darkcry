@@ -9,9 +9,27 @@ import { renderPresentation } from './renderer.js';
 import { sourceRouter } from './sources.js';
 import { repositoryRouter } from './repositories.js';
 import { agentRouter, createAgentCore } from './core/agentRouter.js';
+import { loadConfig } from './config.js';
+import { ModelRegistry } from './models/modelRegistry.js';
+import { ModelGateway } from './models/modelGateway.js';
+import { OllamaProvider } from './models/providers/ollamaProvider.js';
+import { modelRouter } from './models/modelRouter.js';
+import { EmbeddingGateway } from './knowledge/embeddingGateway.js';
+import { QdrantVectorStore } from './knowledge/qdrantVectorStore.js';
+import { KnowledgeHub } from './knowledge/knowledgeHub.js';
+import { knowledgeRouter } from './knowledge/knowledgeRouter.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = path.join(root, 'generated');
+const config = loadConfig();
+const modelRegistry = new ModelRegistry();
+if (config.chatModel) modelRegistry.register({ modelId: config.chatModel, providerId: 'ollama', displayName: config.chatModel, capabilities: ['chat'], purposes: ['GENERAL', 'PLANNING', 'CRITIQUE'], enabled: true, defaultTemperature: 0 });
+if (config.embeddingModel && config.embeddingModel !== config.chatModel) modelRegistry.register({ modelId: config.embeddingModel, providerId: 'ollama', displayName: config.embeddingModel, capabilities: ['embedding'], purposes: ['EMBEDDING'], enabled: true });
+else if (config.embeddingModel) modelRegistry.get(config.chatModel).capabilities.push('embedding');
+const ollama = new OllamaProvider({ baseUrl: config.ollamaUrl, timeoutMs: config.timeoutMs });
+const models = new ModelGateway({ registry: modelRegistry, timeoutMs: config.timeoutMs });
+models.registerProvider(ollama);
+const knowledge = new KnowledgeHub({ root, embedding: new EmbeddingGateway({ provider: ollama, model: config.embeddingModel }), store: new QdrantVectorStore({ baseUrl: config.qdrantUrl, timeoutMs: config.timeoutMs }), collection: config.collection, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, contextTokens: config.contextTokens });
 const app = express();
 app.use(express.json({ limit: '128kb' }));
 app.use(express.static(path.join(root, 'public')));
@@ -19,6 +37,8 @@ app.get('/', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/sources', sourceRouter(root));
 app.use('/api/repositories', repositoryRouter(root));
 app.use('/api/agent', agentRouter(createAgentCore()));
+app.use('/api/models', modelRouter(models));
+app.use('/api/knowledge', knowledgeRouter(knowledge));
 app.post('/api/presentations/generate', async (req, res) => {
   try {
     const plan = planPresentation(req.body);
