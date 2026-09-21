@@ -11,6 +11,7 @@ export class KnowledgeHub {
   event(type, details = {}) { this.events.push({ type, at: new Date().toISOString(), ...details }); }
   async indexDocuments(projectId, documents) {
     if (!validProjectId(projectId)) throw bad(400, 'INVALID_PROJECT', 'Invalid project ID.');
+    this.event('KNOWLEDGE_INDEX_STARTED', { projectId, documentCount: documents.length });
     const chunks = [];
     for (const doc of documents) {
       if (doc.projectId !== projectId || !doc.documentId || !doc.sourceId || !['DOCUMENT', 'NOTES', 'REPOSITORY_FILE', 'ARTIFACT', 'SYSTEM'].includes(doc.sourceType) || typeof doc.text !== 'string') throw bad(400, 'INVALID_DOCUMENT', 'Invalid knowledge document.');
@@ -45,6 +46,6 @@ export class KnowledgeHub {
     return { results, context };
   }
   async deleteSource(projectId, sourceId) { if (!validProjectId(projectId)) throw bad(400, 'INVALID_PROJECT', 'Invalid project ID.'); await this.store.deleteBySource(this.collection, projectId, sourceId); for (const [key, item] of this.index) if (item.projectId === projectId && item.sourceId === sourceId) this.index.delete(key); this.event('KNOWLEDGE_SOURCE_DELETED', { projectId, sourceId }); }
-  async deleteProject(projectId) { if (!validProjectId(projectId)) throw bad(400, 'INVALID_PROJECT', 'Invalid project ID.'); await this.store.deleteByProject(this.collection, projectId); for (const [key, item] of this.index) if (item.projectId === projectId) this.index.delete(key); }
+  async deleteProject(projectId) { if (!validProjectId(projectId)) throw bad(400, 'INVALID_PROJECT', 'Invalid project ID.'); await this.store.deleteByProject(this.collection, projectId); for (const [key, item] of this.index) if (item.projectId === projectId) this.index.delete(key); this.event('KNOWLEDGE_PROJECT_DELETED', { projectId }); }
   async status() { const counts = await this.store.counts(this.collection).catch(() => ({ chunks: null, documents: null })); return { vectorStore: this.store.type, embeddingProvider: this.embedding.provider.id, embeddingModelConfigured: Boolean(this.embedding.model), indexedDocumentCount: this.index.size || counts.documents, indexedChunkCount: counts.chunks, vectorStoreAvailable: await this.store.healthCheck() }; }
 }

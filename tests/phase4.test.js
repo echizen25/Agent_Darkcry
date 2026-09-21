@@ -79,6 +79,8 @@ test('embedding dimensions and vector search enforce scope, filters, topK, delet
   assert.equal((await hub.query({ projectId: 'Alpha', query: 'auth', topK: 1 })).results.length, 1);
   await hub.deleteSource('Alpha', 'A'); assert.ok((await hub.query({ projectId: 'Alpha', query: 'auth' })).results.every(item => item.sourceId !== 'A'));
   await hub.deleteProject('Beta'); assert.equal((await hub.query({ projectId: 'Beta', query: 'auth' })).results.length, 0);
+  assert.ok(hub.events.some(item => item.type === 'KNOWLEDGE_INDEX_STARTED'));
+  assert.ok(hub.events.some(item => item.type === 'KNOWLEDGE_PROJECT_DELETED' && item.projectId === 'Beta'));
   assert.ok(hub.events.some(item => item.type === 'CONTEXT_BUILT'));
 });
 
@@ -87,6 +89,7 @@ test('context removes duplicates and keeps retrieved injection as untrusted data
   const context = buildContext({ query: 'x', results: [item, { ...item, chunkId: '2' }], maxTokens: 20, maxChunks: 2, minScore: 0.5 });
   assert.equal(context.items.length, 1); assert.match(context.trustBoundary, /untrusted data/);
   assert.equal(context.items[0].text, item.text);
+  assert.equal(buildContext({ query: 'x', results: [item, { ...item, chunkId: '3', sourceId: 'B' }], maxTokens: 30, maxChunks: 2 }).items.length, 1);
   assert.equal(buildContext({ query: 'x', results: [item], maxTokens: 2 }).items.length, 0);
   const input = buildModelInput({ systemInstruction: 'Follow task policy.', taskObjective: 'Summarize', retrievedContext: context });
   assert.equal(input.systemInstruction, 'Follow task policy.');
@@ -152,7 +155,23 @@ test('Qdrant adapter sends mandatory project filter and rejects invalid collecti
   const body = JSON.parse(calls[0].options.body);
   assert.deepEqual(body.filter.must[0], { key: 'projectId', match: { value: 'Alpha' } });
   assert.deepEqual(body.filter.must[1], { key: 'sourceId', match: { value: 'A' } });
+  await store.search('test_knowledge', { projectId: 'Alpha', vector: [1, 0], filters: { repositoryId: 'repo', relativePath: 'src/auth.js' } });
+  const repositoryFilter = JSON.parse(calls[1].options.body).filter.must;
+  assert.deepEqual(repositoryFilter[1], { key: 'provenance.repositoryId', match: { value: 'repo' } });
+  assert.deepEqual(repositoryFilter[2], { key: 'provenance.relativePath', match: { value: 'src/auth.js' } });
   await assert.rejects(store.ensureCollection('../bad', 2), { status: 400 });
+});
+
+test('Qdrant dimension mismatch preserves collection and transport failures are bounded', async () => {
+  const requests = [];
+  const store = new QdrantVectorStore({ baseUrl: 'http://127.0.0.1:6333', fetchImpl: async (url, options) => {
+    requests.push({ url, method: options.method });
+    return new Response(JSON.stringify(url.endsWith('/collections') ? { result: { collections: [{ name: 'shared' }] } } : { result: { config: { params: { vectors: { size: 768 } } } } }), { status: 200 });
+  } });
+  await assert.rejects(store.ensureCollection('shared', 3), { code: 'VECTOR_DIMENSION_MISMATCH', status: 409 });
+  assert.ok(requests.every(request => request.method === 'GET'));
+  const unavailable = new QdrantVectorStore({ baseUrl: 'http://127.0.0.1:6333', timeoutMs: 20, fetchImpl: (_url, options) => new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(options.signal.reason))) });
+  await assert.rejects(unavailable.search('shared', { projectId: 'Alpha', vector: [1] }), { code: 'VECTOR_STORE_UNAVAILABLE', status: 503 });
 });
 
 test('knowledge and model diagnostics work through API; errors hide stacks', async () => {

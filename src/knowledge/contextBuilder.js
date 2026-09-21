@@ -6,7 +6,7 @@ export function buildContext({ query, results, maxTokens = 3000, maxChunks = 8, 
   for (const result of [...results].sort((a, b) => b.score - a.score)) {
     if (items.length >= maxChunks) break;
     if (result.score < minScore) continue;
-    const key = `${result.sourceId}:${result.text}`;
+    const key = result.text;
     if (seen.has(key)) continue;
     seen.add(key);
     const tokens = estimateTokens(result.text) + estimateTokens(JSON.stringify(result.provenance || {}));

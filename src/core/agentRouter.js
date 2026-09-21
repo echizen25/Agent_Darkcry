@@ -55,7 +55,7 @@ export function agentRouter(core) {
     const details = core.details(id);
     if (details.kind !== 'research') throw Object.assign(new Error('Research job not found.'), { status: 404 });
     const data = details.tasks.find(task => task.key === 'research')?.result?.data;
-    return { ...details, groundedResult: details.status === 'COMPLETED' ? { answer: data?.answer, claims: data?.claims } : null };
+    return { ...details, groundedResult: details.status === 'COMPLETED' ? { answer: data?.answer, claims: data?.claims, limitations: data?.limitations || [] } : null };
   };
   router.post('/research/jobs', (req, res) => {
     try {

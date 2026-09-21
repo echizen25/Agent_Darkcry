@@ -22,6 +22,7 @@ async function fixture(mode = 'grounded') {
     const input = JSON.parse(messages[0].content);
     const item = input.retrievedKnowledge.items[0];
     if (mode === 'malformed') return { content: 'not JSON' };
+    if (mode === 'abstain') return { content: '{"claims":[]}' };
     const bad = mode === 'unsupported' || mode === 'repair' && calls === 1;
     const claim = { text: bad ? 'Unicorn powers authentication.' : item.text, evidence: [{ chunkId: item.chunkId, quote: item.text }] };
     const content = JSON.stringify({ claims: [claim] });
@@ -103,13 +104,32 @@ test('repeated unsupported claim stops without unbounded calls', async () => {
   assert.ok(result.events.some(item => item.type === 'NO_PROGRESS_DETECTED'));
 });
 
-test('malformed model output and empty source context cannot pass final review', async () => {
+test('malformed model output fails, while empty source context produces grounded abstention', async () => {
   const { core } = await fixture('malformed');
   const job = core.createJob('How does authentication work?', { projectId: 'Alpha', kind: 'research', metadata: { research: { topK: 2, maxContextTokens: 100, maxAttempts: 2 } } });
   assert.equal((await core.run(job.jobId)).status, 'FAILED');
   const empty = core.createJob('Unknown question', { projectId: 'Empty', kind: 'research', metadata: { research: { topK: 2, maxContextTokens: 100, maxAttempts: 2 } } });
   const result = await core.run(empty.jobId);
-  assert.equal(result.status, 'FAILED'); assert.equal(result.tasks[0].attempt, 1);
+  assert.equal(result.status, 'COMPLETED'); assert.equal(result.tasks[0].attempt, 1);
+  assert.equal(result.tasks[0].validations[0].status, 'pass');
+  assert.deepEqual(result.tasks[0].result.data.claims, []);
+  assert.match(result.tasks[0].result.data.answer, /not provide enough evidence/);
+});
+
+test('abstention passes only without relevant evidence and never invents citations', async () => {
+  const { core } = await fixture('abstain');
+  const missing = core.createJob('What database engine does Alpha use?', { projectId: 'Alpha', kind: 'research' });
+  const result = await core.run(missing.jobId);
+  assert.equal(result.status, 'COMPLETED');
+  assert.equal(result.tasks[0].validations[0].status, 'pass');
+  assert.deepEqual(result.tasks[0].result.evidence, []);
+  assert.deepEqual(result.tasks[0].result.data.claims, []);
+  const relevant = core.createJob('How does authentication work?', { projectId: 'Alpha', kind: 'research', metadata: { research: { maxAttempts: 1 } } });
+  assert.equal((await core.run(relevant.jobId)).status, 'FAILED');
+  const abstention = { data: { answer: 'The indexed project sources do not provide enough evidence to answer this question.', claims: [], limitations: ['No supporting project evidence was retrieved.'], question: 'What database engine does Project Alpha use?', projectId: 'P52Alpha_123', retrievedContext: { items: [{ chunkId: 'a', text: 'Project Alpha authentication uses signed cookies.' }] } } };
+  assert.equal(groundingEvaluator.evaluate({ result: abstention }).status, 'pass');
+  abstention.data.question = 'How does Project Alpha authentication work?';
+  assert.equal(groundingEvaluator.evaluate({ result: abstention }).status, 'fail');
 });
 
 test('research API validates input, runs through same core, and returns grounded result', async () => {
