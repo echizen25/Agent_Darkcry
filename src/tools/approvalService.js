@@ -10,7 +10,7 @@ export class ApprovalService {
     const approval = {
       approvalId: randomUUID(), projectId: job.projectId, jobId: job.jobId, taskId: task.taskId,
       agentId: agent.id, toolId: tool.id, requestedAction: action, inputDigest: inputDigest(input), reason, riskLevel: tool.riskLevel,
-      status: 'PENDING', requestedAt: new Date().toISOString(), resolvedAt: null,
+      status: 'PENDING', requestedAt: new Date().toISOString(), resolvedAt: null, requestPreview: input?.proposal ? { fingerprint: input.fingerprint, workspaceId: input.workspaceId, files: input.proposal.files.map(file => ({ path: file.path, operation: file.operation })), summary: input.proposal.summary } : null,
       resolution: null, resolvedBy: null, consumedAt: null
     };
     return this.store.createApproval(approval);

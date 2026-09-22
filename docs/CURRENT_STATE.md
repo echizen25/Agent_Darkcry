@@ -1,7 +1,7 @@
 # Current State
 
-- **Current phase:** Phase 5.2 persistent Qdrant validation.
-- **What currently works:** Existing presentation, ingestion, Agent Core, tools, Model Gateway, and Knowledge Hub flows; a read-only research job with project-scoped retrieval, bounded context, structured claims, deterministic grounding checks, targeted critic retry, and final review. See [RESEARCH_AGENT.md](RESEARCH_AGENT.md).
-- **Current task:** User review of Phase 5.2 real Qdrant persistence and grounded research validation.
-- **Next task:** Review Phase 5.2 before any Phase 6 work.
-- **Known issues:** Grounding and abstention relevance use conservative lexical checks, not semantic proof. Research/model histories reset on restart. Presentation generation does not use research yet; scanned PDFs need OCR. Repository analysis remains capped at 500 files and 20 MB of text.
+- **Current phase:** Phase 6 Developer Team V1 implementation.
+- **What currently works:** Existing presentation, ingestion, Agent Core, Model Gateway, persistent Knowledge Hub, grounded research, and a controlled development workflow with scoped workspaces, patch proposals, deterministic safety review, exact human approval, stale protection, snapshots, rollback, allowlisted tests, critic repair, and final review. See [DEVELOPER_TEAM.md](DEVELOPER_TEAM.md).
+- **Current task:** User review of Phase 6 controlled editing and real local-model validation.
+- **Next task:** Review Phase 6 before any later-phase work.
+- **Known issues:** Development context and review use conservative text rules rather than language-specific AST or semantic analysis. Runtime orchestration records are process local. Grounding and abstention relevance remain lexical. Presentation generation does not use research yet; scanned PDFs need OCR.

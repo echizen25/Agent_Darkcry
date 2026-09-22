@@ -32,3 +32,9 @@ Deterministic validators run first where possible. A semantic evaluator checks c
 ## Tools, artifacts, and provenance
 
 Tool definition: `toolId`, `capabilities`, `riskClass`, `allowedAgentTypes`, `requiredPermissions`, `requiresHumanApproval`, and input/output schemas. Artifact metadata: `artifactId`, `projectId`, `jobId`, `taskId`, `type`, `version`, `path`, `creatorAgent`, `createdAt`, `validationStatus`, `sourceLineage`. Source references preserve applicable document page/slide/sheet or repository path/commit and future chunk IDs. Paths are references subject to project permissions, not authority to read arbitrary files.
+
+## Development request and patch proposal
+
+A development request carries `projectId`, canonicalized workspace root, request, acceptance criteria, allowed and denied paths, structured test commands, file/byte/iteration limits, create/delete flags, dry-run mode, and read-only Git preference. The registered workspace ID, rather than later agent input, selects the canonical root.
+
+A patch proposal contains `summary`, `reasoningSummary`, `files`, `testsRecommended`, `risks`, and `assumptions`. Each file has path, `MODIFY|CREATE|DELETE`, full replacement content, expected base hash, and purpose. The SHA-256 fingerprint covers the normalized complete proposal. Approval binds job, task, agent, tool action, workspace, proposal input digest, and fingerprint. Approval is single-use and cannot authorize a changed patch.

@@ -27,7 +27,7 @@ export class ToolExecutionService {
       emit('TOOL_EXECUTION_FAILED', { toolRunId: run.toolRunId, errorCode: 'INVALID_INPUT' });
       return responseError('INVALID_INPUT', 'Tool input is invalid.');
     }
-    if (approval && (approval.jobId !== job.jobId || approval.taskId !== task.taskId || approval.agentId !== agent.id || approval.toolId !== toolId || approval.requestedAction !== action || approval.inputDigest !== inputDigest(input))) {
+    if (approval && (tool.riskLevel === 'HIGH_RISK' || tool.requiresApproval) && (approval.jobId !== job.jobId || approval.taskId !== task.taskId || approval.agentId !== agent.id || approval.toolId !== toolId || approval.requestedAction !== action || approval.inputDigest !== inputDigest(input))) {
       finish('DENIED', 'APPROVAL_SCOPE_MISMATCH', 'Approval does not match this action.');
       emit('TOOL_PERMISSION_DENIED', { toolRunId: run.toolRunId, reason: 'Approval scope mismatch.' });
       return responseError('APPROVAL_SCOPE_MISMATCH', 'Approval does not match this action.');
@@ -48,7 +48,8 @@ export class ToolExecutionService {
       emit('TOOL_EXECUTION_COMPLETED', { toolRunId: run.toolRunId, toolId });
       return result;
     } catch (cause) {
-      const code = ['MODEL_NOT_FOUND', 'EMBEDDING_FAILED', 'VECTOR_STORE_UNAVAILABLE', 'VECTOR_DIMENSION_MISMATCH'].includes(cause.code) ? cause.code : 'TOOL_EXECUTION_FAILED';
+      const allowed = ['MODEL_NOT_FOUND', 'EMBEDDING_FAILED', 'VECTOR_STORE_UNAVAILABLE', 'VECTOR_DIMENSION_MISMATCH', 'WORKSPACE_NOT_FOUND', 'PATH_OUTSIDE_WORKSPACE', 'PATH_DENIED', 'BINARY_FILE_DENIED', 'FILE_TOO_LARGE', 'PATCH_INVALID', 'PATCH_TOO_LARGE', 'TOO_MANY_FILES', 'DELETE_NOT_ALLOWED', 'APPROVAL_REQUIRED', 'APPROVAL_MISMATCH', 'STALE_PATCH', 'PATCH_APPLY_FAILED', 'ROLLBACK_FAILED', 'TEST_COMMAND_NOT_ALLOWED', 'TEST_TIMEOUT', 'TEST_FAILED'];
+      const code = allowed.includes(cause.code) ? cause.code : 'TOOL_EXECUTION_FAILED';
       finish('ERROR', code, 'Tool execution failed.');
       emit('TOOL_EXECUTION_FAILED', { toolRunId: run.toolRunId, errorCode: code });
       return responseError(code, code === 'TOOL_EXECUTION_FAILED' ? 'Tool execution failed.' : cause.message);

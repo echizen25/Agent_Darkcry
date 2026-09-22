@@ -32,7 +32,7 @@ export class Orchestrator {
     if (goal.length > 1000) throw error(400, 'Goal is too long.');
     if (options.maxIterations !== undefined && (!Number.isInteger(options.maxIterations) || options.maxIterations < 1)) throw error(400, 'maxIterations must be a positive integer.');
     const job = {
-      jobId: randomUUID(), projectId: options.projectId || randomUUID(), goal: goal.trim(), kind: options.kind === 'research' ? 'research' : 'demo', status: 'QUEUED',
+      jobId: randomUUID(), projectId: options.projectId || randomUUID(), goal: goal.trim(), kind: ['research', 'development'].includes(options.kind) ? options.kind : 'demo', status: 'QUEUED',
       createdAt: now(), startedAt: null, completedAt: null, tasks: [], currentTaskId: null,
       iteration: 0, maxIterations: options.maxIterations ?? 10, failureReason: null, metadata: options.metadata || {},
       issues: [], events: [], finalReview: null
@@ -58,7 +58,7 @@ export class Orchestrator {
         dependencies: item.dependsOn.map(key => ids.get(key)), requiredInputs: [], expectedOutputs: item.expectedOutputs || [],
         acceptanceCriteria: item.acceptanceCriteria, evaluatorId: item.evaluatorId || 'deterministic', allowedTools: item.allowedTools || [], scope: item.scope || {}, contextBudget: item.contextBudget || { maxInputTokens: 2000, maxRetrievedSources: 0 },
         timeout: item.timeout || 30000, status: 'QUEUED', priority: 0, attempt: 0, maxAttempts: item.maxAttempts ?? 2,
-        result: null, issues: [], validations: [], runs: [], repairGuidance: null, pendingApprovalId: null, failureReason: null,
+        result: null, issues: [], validations: [], runs: [], repairGuidance: null, pendingApprovalId: null, pendingState: null, failureReason: null,
         createdAt: now(), startedAt: null, completedAt: null
       };
     });
@@ -69,7 +69,7 @@ export class Orchestrator {
     }
     return job.tasks.filter(task => task.status === 'READY').sort((a, b) => b.priority - a.priority);
   }
-  workflow(job) { return job.kind === 'research' ? { plannerId: 'research.planner', criticId: 'research.critic', reviewerId: 'research.finalReviewer' } : { plannerId: this.plannerId, criticId: this.criticId, reviewerId: this.reviewerId }; }
+  workflow(job) { return job.kind === 'research' ? { plannerId: 'research.planner', criticId: 'research.critic', reviewerId: 'research.finalReviewer' } : job.kind === 'development' ? { plannerId: 'development.planner', criticId: 'development.critic', reviewerId: 'development.finalReviewer' } : { plannerId: this.plannerId, criticId: this.criticId, reviewerId: this.reviewerId }; }
   async run(id) {
     const job = this.getJob(id);
     if (this.active.has(id)) throw error(409, 'Job is already running.');
@@ -77,7 +77,7 @@ export class Orchestrator {
     this.active.add(id);
     try {
       this.change(job, job, 'PLANNING');
-      const plan = await withTimeout(this.agents.get(this.workflow(job).plannerId).execute({ goal: job.goal, projectId: job.projectId, research: job.metadata.research }), 30000);
+      const plan = await withTimeout(this.agents.get(this.workflow(job).plannerId).execute({ goal: job.goal, projectId: job.projectId, research: job.metadata.research, development: job.metadata.development }), 30000);
       if (plan.status !== 'completed') throw new Error('Planner did not complete.');
       job.tasks = this.makeTasks(job, plan.data?.tasks);
       this.event(job, 'PLAN_CREATED', null, { taskCount: job.tasks.length });
@@ -157,20 +157,20 @@ export class Orchestrator {
       resume = false;
       const agent = this.agents.get(task.assignedAgent);
       const context = {
-        task: { taskId: task.taskId, key: task.key, objective: task.objective, requiredInputs: task.requiredInputs, expectedOutputs: task.expectedOutputs, allowedTools: task.allowedTools, contextBudget: task.contextBudget },
+        task: { taskId: task.taskId, key: task.key, objective: task.objective, requiredInputs: task.requiredInputs, expectedOutputs: task.expectedOutputs, allowedTools: task.allowedTools, contextBudget: task.contextBudget, scope: task.scope },
         jobId: job.jobId, attempt: task.attempt, projectState: { projectId: job.projectId }, retrievedKnowledge: [],
         artifactReferences: this.artifacts.list(job.jobId).map(item => item.artifactId),
         previousResults: job.tasks.filter(item => item.status === 'COMPLETED').map(item => ({ key: item.key, data: item.result?.data })),
-        repairGuidance: task.repairGuidance,
+        repairGuidance: task.repairGuidance, pendingState: task.pendingState || null,
         emitEvent: (type, details) => this.event(job, type, task, details),
         requestTool: request => this.tools.request({ ...request, job, task, agent, approvalId: task.pendingApprovalId, emit: (type, details) => this.event(job, type, task, details) })
       };
       const result = await withTimeout(agent.execute(context), task.timeout);
       if (result?.status === 'waitingForApproval') {
-        task.pendingApprovalId = result.approvalId; run.result = result;
+        task.pendingApprovalId = result.approvalId; task.pendingState = result.data || null; run.result = result;
         this.change(job, task, 'WAITING_FOR_APPROVAL'); this.change(job, job, 'WAITING_FOR_APPROVAL'); this.store.saveJob(job); return true;
       }
-      task.pendingApprovalId = null;
+      task.pendingApprovalId = null; task.pendingState = null;
       if (result?.status !== 'completed') throw new Error(`Agent ${task.assignedAgent} did not complete.`);
       run.result = result; task.result = result; this.event(job, 'TASK_RESULT_RECEIVED', task, { summary: result.summary });
       this.change(job, task, 'VALIDATING'); this.event(job, 'EVALUATION_STARTED', task);
@@ -199,6 +199,11 @@ export class Orchestrator {
       task.repairGuidance = critique.data;
       this.event(job, 'REPAIR_GUIDANCE_CREATED', task, { diagnosis: critique.data.diagnosis });
       this.event(job, 'TASK_RETRY', task, { nextAttempt: task.attempt + 1 });
+    }
+    if (job.kind === 'development' && this.workspaces) {
+      const snapshots = task.runs.map(item => item.result?.data?.applied?.snapshotId).filter(Boolean).reverse();
+      try { for (const snapshotId of snapshots) await this.workspaces.restore(snapshotId); if (snapshots.length) this.event(job, 'DEVELOPMENT_ROLLBACK_COMPLETED', task, { snapshots: snapshots.length }); }
+      catch { task.failureReason = 'ROLLBACK_FAILED'; this.event(job, 'DEVELOPMENT_ROLLBACK_FAILED', task); }
     }
     this.change(job, task, 'FAILED');
     job.currentTaskId = null;

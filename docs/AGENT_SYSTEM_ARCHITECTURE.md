@@ -41,3 +41,7 @@ Structured logs should include project, job, task, agent, iteration, model/tool 
 ## Intended module boundaries
 
 Keep the current `src/server.js`, `src/planner.js`, `src/renderer.js`, `src/sources.js`, `src/repositories.js`, and vanilla `public/` UI working. As capabilities are implemented, introduce `src/core/` (job engine/state), `src/agents/` (registry/adapters), `src/tools/` (policy and adapters), `src/knowledge/` (catalog/retrieval), `src/models/` (gateway), `src/evaluation/`, `src/artifacts/`, and `src/storage/`. These are proposed boundaries, not folders to create now. API routes should remain adapters over domain modules. Preserve current endpoints while migrating their internals only when a phase requires it.
+
+## Implemented Developer Team V1
+
+Phase 6 adds canonical workspace registration, bounded text reads/search, structured full-content patch proposals, deterministic patch safety and code review, exact fingerprint-bound approval, affected-file snapshots, stale checks, atomic replacement with rollback, and allowlisted tests without a shell. The shared Orchestrator owns approval pause/resume, evaluator results, critic retry, no-progress detection, artifacts, events, and final review. Git access is read-only; no commit or push tool exists. See [DEVELOPER_TEAM.md](DEVELOPER_TEAM.md).
