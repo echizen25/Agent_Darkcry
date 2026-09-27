@@ -1,5 +1,25 @@
 # Developer Team V1
 
+## Phase 6.1 task graph
+
+New development API jobs use an explicit graph: `DEV_PLAN → CODE_RESEARCH → DEVELOP → PATCH_EVALUATE → CODE_REVIEW → PATCH_APPROVAL → PATCH_APPLY → TEST → FINAL_REVIEW`. Dry runs omit approval, apply, and test. Each stage is a separate task with its own registered agent and dependencies. Failed review, patch evaluation, or tests append `CRITIQUE_REPAIR → CODE_RESEARCH → DEVELOP` and a new downstream graph within the bounded attempt limit. An exact changed patch receives a fresh fingerprint and approval. The accepted Phase 6 direct-job flow remains available for older callers.
+
+`DevelopmentPlannerAgent` returns a goal, criteria, investigation/implementation/test tasks, likely areas, knowledge queries, risks, and clarification flag. The orchestrator owns stage transitions and records compact handoffs: source/target agent, task ID, objective, artifact/context IDs, issues, trusted constraints, and expected output. Handoffs are data; Tool Registry and Permission Policy alone grant capabilities. Reviewer, TestAgent, Critic, and FinalReviewer are explicit tasks. Review is deterministic and cannot override patch safety. TestAgent runs only registered command IDs and passes a short failure excerpt downstream; the full bounded log is kept as a `TEST_RESULT` artifact. The final task checks criteria evidence, exact approval, current file hashes, test result, unresolved issues, rollback state, and required artifacts.
+
+## Code discovery and context
+
+`CodeIntelligenceService` scans only allowed text files and builds a lightweight workspace symbol index. It heuristically discovers definitions, references, imports/includes, routes/config hints, and related tests for JavaScript, TypeScript, C#, Java, Classic ASP/VBScript, SQL, HTML, CSS, JSON, XML, and Markdown. `code.symbolSearch`, `code.findReferences`, and `code.relatedTests` are bounded read-only tools. Results are candidates, not compiler-level answers. The index is invalidated after an approved write.
+
+`CODE_RESEARCH` ranks explicit paths, path/symbol matches, import hints, and related tests. It optionally queries the existing project-scoped Knowledge Hub with a repository filter and bounded top K. Qdrant is discovery data. Current workspace content and SHA-256 hashes are read before a patch; the Developer refreshes any file that changed since research. Knowledge chunks are separate and marked `STALE_KNOWLEDGE` when they conflict with current file content. Qdrant unavailability leaves local discovery working. No new vector store or reindex is started.
+
+The `DEVELOPMENT_CONTEXT` artifact contains request, criteria, current file ranges and hashes, symbols, knowledge chunks, tests, constraints, estimated tokens, context pressure, and truncation. Defaults: 4,000 developer tokens, 8 files, 3 ranges per file, Qdrant top K 3, and 20 symbols; configure with `DEVELOPMENT_CONTEXT_TOKENS`, `DEVELOPMENT_MAX_FILES`, `DEVELOPMENT_MAX_RANGES_PER_FILE`, `DEVELOPMENT_QDRANT_TOP_K`, and `DEVELOPMENT_MAX_SYMBOL_RESULTS`. Duplicate file/chunk references are removed. Handoffs carry artifact IDs, and each specialist loads only needed sections. After a write, repair research reads the affected files again.
+
+Per-job metrics include estimated context tokens, bytes, file/chunk counts, context pressure, artifact reference reuse, model calls, and actual provider tokens when returned. Token estimates use the existing rough character heuristic, not billing figures. The optional compression hook accepts only logs, terminal output, search descriptions, and repetitive JSON; missing or failed compression passes the bounded original through. Security instructions, approvals, hashes, patches, commands, IDs, and error codes are excluded from lossy compression.
+
+## Model boundary
+
+Codex authenticated through the user's ChatGPT plan is the preferred cloud assistant for building this project. It is separate from Darkcry's runtime Model Gateway. Runtime jobs accept `providerMode: local|openai|auto`; the default is local. `local` uses Ollama (`llama3.1:8b` in this setup), and the existing Knowledge Hub uses local `embeddinggemma:300m`. `auto` prefers a healthy local provider and can select a separately configured OpenAI API provider if local health fails. `openai` means that separate API provider and does not use ChatGPT Plus authentication. No API key is required for Phase 6.1; an unconfigured OpenAI API mode returns a structured provider error. Provider selection cannot change tool permissions. `GET /api/models/runtime` reports active model/provider and configuration status.
+
 Phase 6 adds controlled development jobs to the shared Orchestrator. DeveloperAgent builds a structured full-content patch proposal from bounded workspace reads. PatchSafetyEvaluator runs before the read-only CodeReviewerAgent. A non-dry-run job then pauses in `WAITING_FOR_APPROVAL`; approval records the exact SHA-256 patch fingerprint, workspace, affected paths, operations, and summary. Approval resumes the same job. Any changed patch is rejected.
 
 ## Workspace and paths

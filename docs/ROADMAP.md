@@ -11,6 +11,7 @@ Each phase preserves the current presentation and source endpoints and has a tes
 | 4 — Tool policy | Permission-aware registry and approval records | Unauthorized calls are rejected and audited |
 | 5 — Knowledge | Common source catalog, provenance, chunking, later retrieval | Relevant chunks selected within context budgets; originals retained |
 | 6 — Development team | Implemented: scoped proposal, exact approval, controlled edit/test/review/repair, snapshot rollback, read-only Git | Security demos, real local dry run/write, diff and test evidence pass |
+| 6.1 — Developer intelligence | Explicit specialist task graph, bounded code intelligence, hybrid context, local provider modes, token ledger, external tool and memory evaluation | Deterministic security and workflow tests, local disposable demos, full regression |
 | 7 — PowerPoint team | Adapt existing planner/renderer to specialist tasks | Current PPTX path still passes; new slide checks pass |
 | 8 — Reports | Document/report specialists and artifact validation | Report output and review pass |
 | 9 — Media | Script/storyboard/assets, FFmpeg-first production | Timed output and review pass |

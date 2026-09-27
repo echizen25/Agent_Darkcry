@@ -20,6 +20,10 @@ import { registerWorkspaceTools } from '../tools/workspaceTools.js';
 import { createPatchSafetyEvaluator } from '../evaluation/patchSafetyEvaluator.js';
 import { developmentResultEvaluator } from '../evaluation/developmentResultEvaluator.js';
 import { createDevelopmentAgents } from '../agents/developmentAgents.js';
+import { createDevelopmentV2Agents } from '../agents/developmentV2Agents.js';
+import { CodeIntelligenceService } from '../development/codeIntelligenceService.js';
+import { ContextBudgetManager } from '../development/contextBudgetManager.js';
+import { DevelopmentTaskGraph } from './developmentTaskGraph.js';
 
 export function createAgentCore({ knowledge = null, models = null, workspaces = null, testCommands = null } = {}) {
   const store = new MemoryStore();
@@ -28,7 +32,8 @@ export function createAgentCore({ knowledge = null, models = null, workspaces = 
   const registry = registerDemoTools(new ToolRegistry());
   const evaluationCore = new EvaluationCore();
   workspaces ||= new WorkspaceRegistry(); testCommands ||= new TestCommandRegistry();
-  registerWorkspaceTools(registry, workspaces, testCommands);
+  const intelligence = new CodeIntelligenceService({ workspaces }), budgetManager = new ContextBudgetManager();
+  registerWorkspaceTools(registry, workspaces, testCommands, intelligence);
   evaluationCore.registry.register(createPatchSafetyEvaluator(workspaces));
   evaluationCore.registry.register(developmentResultEvaluator);
   if (knowledge && models) {
@@ -36,10 +41,10 @@ export function createAgentCore({ knowledge = null, models = null, workspaces = 
     createResearchAgents(models).forEach(agent => agents.register(agent));
     evaluationCore.registry.register(groundingEvaluator);
   }
-  if (models) createDevelopmentAgents({ models, workspaces, evaluation: evaluationCore }).agents.forEach(agent => agents.register(agent));
+  if (models) { createDevelopmentAgents({ models, workspaces, evaluation: evaluationCore }).agents.forEach(agent => agents.register(agent)); createDevelopmentV2Agents({ models, workspaces, intelligence, knowledge, budgetManager, evaluation: evaluationCore }).agents.forEach(agent => agents.register(agent)); }
   const approvals = new ApprovalService(store);
   const toolService = new ToolExecutionService({ registry, policy: new PermissionPolicy(), approvals, store });
-  const core = new Orchestrator({ store, agents, artifacts, evaluationCore, toolService, approvals }); core.workspaces = workspaces; core.testCommands = testCommands; return core;
+  const core = new Orchestrator({ store, agents, artifacts, evaluationCore, toolService, approvals }); core.workspaces = workspaces; core.testCommands = testCommands; core.models = models; core.intelligence = intelligence; core.contextBudget = budgetManager; core.developmentGraph = new DevelopmentTaskGraph(core, { budgetManager, intelligence }); return core;
 }
 
 export function agentRouter(core) {
@@ -84,10 +89,14 @@ export function agentRouter(core) {
       const body = req.body || {}, projectId = body.projectId;
       if (!validProjectId(projectId) || typeof body.workspaceRoot !== 'string' || typeof body.request !== 'string' || !body.request.trim() || body.request.length > 2000 || !Array.isArray(body.acceptanceCriteria) || !Array.isArray(body.allowedPaths) || !body.allowedPaths.length || !Array.isArray(body.deniedPaths || []) || !Array.isArray(body.testCommands || []) || !Number.isInteger(body.maxFilesChanged ?? 10) || !Number.isInteger(body.maxPatchBytes ?? 100000) || !Number.isInteger(body.maxIterations ?? 3)) return res.status(400).json({ error: 'Invalid development request.' });
       if (body.allowGitWrite === true || body.allowDeleteFiles && body.dryRun) return res.status(400).json({ error: 'Invalid development permissions.' });
+      if (body.providerMode !== undefined && !['local', 'openai', 'auto'].includes(body.providerMode)) return res.status(400).json({ error: 'Invalid provider mode.' });
+      if (body.contextTokens !== undefined && (!Number.isInteger(body.contextTokens) || body.contextTokens < 100 || body.contextTokens > 20000)) return res.status(400).json({ error: 'Invalid development context budget.' });
+      if (body.dryRun !== true && body.testCommands.length === 0) return res.status(400).json({ error: 'A registered test command is required for a write job.' });
+      if (body.testCommandIds !== undefined && (!Array.isArray(body.testCommandIds) || body.testCommandIds.some(id => !body.testCommands.some(command => command.id === id)))) return res.status(400).json({ error: 'Unknown test command ID.' });
       body.testCommands.forEach(command => core.testCommands.validate(command));
       const workspace = await core.workspaces.register({ projectId, root: body.workspaceRoot, allowedPaths: body.allowedPaths, deniedPaths: body.deniedPaths || [], testCommands: body.testCommands });
       const contextFiles = Array.isArray(body.contextFiles) ? body.contextFiles : body.allowedPaths.filter(item => item !== '.');
-      const development = { projectId, workspaceId: workspace.workspaceId, request: body.request.trim(), acceptanceCriteria: body.acceptanceCriteria, allowedPaths: body.allowedPaths, deniedPaths: body.deniedPaths || [], testCommandIds: Array.isArray(body.testCommandIds) ? body.testCommandIds : body.testCommands.map(item => item.id), contextFiles, maxFilesChanged: body.maxFilesChanged ?? 10, maxPatchBytes: body.maxPatchBytes ?? 100000, maxIterations: body.maxIterations ?? 3, allowCreateFiles: body.allowCreateFiles !== false, allowDeleteFiles: body.allowDeleteFiles === true, allowGitRead: body.allowGitRead !== false, allowGitWrite: false, dryRun: body.dryRun === true };
+      const development = { projectId, workspaceId: workspace.workspaceId, request: body.request.trim(), acceptanceCriteria: body.acceptanceCriteria, allowedPaths: body.allowedPaths, deniedPaths: body.deniedPaths || [], testCommandIds: Array.isArray(body.testCommandIds) ? body.testCommandIds : body.testCommands.map(item => item.id), contextFiles, contextTokens: body.contextTokens, maxFilesChanged: body.maxFilesChanged ?? 10, maxPatchBytes: body.maxPatchBytes ?? 100000, maxIterations: body.maxIterations ?? 3, allowCreateFiles: body.allowCreateFiles !== false, allowDeleteFiles: body.allowDeleteFiles === true, allowGitRead: body.allowGitRead !== false, allowGitWrite: false, dryRun: body.dryRun === true, orchestrationVersion: 2, providerMode: body.providerMode || 'local', repositoryId: body.repositoryId || null };
       res.status(201).json(core.createJob(development.request, { projectId, kind: 'development', maxIterations: development.maxIterations, metadata: { development } }));
     } catch (error) { respondError(error, res); }
   });

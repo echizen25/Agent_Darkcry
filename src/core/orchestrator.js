@@ -76,6 +76,7 @@ export class Orchestrator {
     if (job.status !== 'QUEUED') throw error(409, `Job cannot run from ${job.status}.`);
     this.active.add(id);
     try {
+      if (job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2) return await this.developmentGraph.start(job);
       this.change(job, job, 'PLANNING');
       const plan = await withTimeout(this.agents.get(this.workflow(job).plannerId).execute({ goal: job.goal, projectId: job.projectId, research: job.metadata.research, development: job.metadata.development }), 30000);
       if (plan.status !== 'completed') throw new Error('Planner did not complete.');
@@ -84,6 +85,7 @@ export class Orchestrator {
       this.change(job, job, 'READY'); this.change(job, job, 'RUNNING');
       return await this.continueJob(job);
     } catch (cause) {
+      if (job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2 && job.developmentState && !['FAILED', 'COMPLETED'].includes(job.status)) { await this.developmentGraph.fail(job, job.tasks.find(task => task.status === 'RUNNING' || task.status === 'VALIDATING'), cause.code || 'STAGE_FAILED'); this.store.saveJob(job); return this.details(job.jobId); }
       const activeTask = job.tasks.find(task => task.taskId === job.currentTaskId);
       if (activeTask && ['PLANNING', 'RUNNING', 'VALIDATING', 'REVISING'].includes(activeTask.status)) this.change(job, activeTask, 'FAILED');
       if (!['COMPLETED', 'FAILED', 'CANCELLED', 'BLOCKED'].includes(job.status)) this.fail(job, cause.message);
@@ -126,8 +128,8 @@ export class Orchestrator {
     this.change(job, task, task.approvalReturnState, task.approvalReturnState);
     this.change(job, job, job.approvalReturnState, job.approvalReturnState);
     this.active.add(job.jobId);
-    try { return await this.continueJob(job, task); }
-    catch (cause) { if (['RUNNING', 'VALIDATING', 'REVISING'].includes(task.status)) this.change(job, task, 'FAILED'); if (job.status === 'RUNNING') this.fail(job, cause.message); throw cause; }
+    try { return job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2 ? await this.developmentGraph.continue(job, task) : await this.continueJob(job, task); }
+    catch (cause) { if (job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2 && job.developmentState && job.status === 'RUNNING') return this.developmentGraph.fail(job, task, cause.code || 'STAGE_FAILED'); if (['RUNNING', 'VALIDATING', 'REVISING'].includes(task.status)) this.change(job, task, 'FAILED'); if (job.status === 'RUNNING') this.fail(job, cause.message); throw cause; }
     finally { job.currentTaskId = null; this.active.delete(job.jobId); this.store.saveJob(job); }
   }
   deny(approvalId) {

@@ -45,3 +45,5 @@ Keep the current `src/server.js`, `src/planner.js`, `src/renderer.js`, `src/sour
 ## Implemented Developer Team V1
 
 Phase 6 adds canonical workspace registration, bounded text reads/search, structured full-content patch proposals, deterministic patch safety and code review, exact fingerprint-bound approval, affected-file snapshots, stale checks, atomic replacement with rollback, and allowlisted tests without a shell. The shared Orchestrator owns approval pause/resume, evaluator results, critic retry, no-progress detection, artifacts, events, and final review. Git access is read-only; no commit or push tool exists. See [DEVELOPER_TEAM.md](DEVELOPER_TEAM.md).
+
+Phase 6.1 adds an explicit development task graph inside that same Orchestrator. Research creates a bounded, project-scoped development context from current workspace code and optional Knowledge Hub retrieval. Major specialist stages have their own task records and artifact-reference handoffs. Runtime provider mode is independent of tool authority. See [CODE_INTELLIGENCE.md](CODE_INTELLIGENCE.md), [CONTEXT_EFFICIENCY.md](CONTEXT_EFFICIENCY.md), and [MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md).
