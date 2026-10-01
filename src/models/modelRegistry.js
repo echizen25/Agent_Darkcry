@@ -6,6 +6,12 @@ export class ModelRegistry {
     this.models.set(model.modelId, { ...model }); return model;
   }
   get(id) { return this.models.get(id) || null; }
+  upsert(model) {
+    if (!model?.modelId || !model.providerId || !Array.isArray(model.capabilities) || !Array.isArray(model.purposes) || typeof model.enabled !== 'boolean') throw new Error('Invalid model definition.');
+    const current = this.models.get(model.modelId);
+    this.models.set(model.modelId, current ? { ...current, ...model } : { ...model });
+    return this.models.get(model.modelId);
+  }
   list() { return [...this.models.values()]; }
   resolve({ modelId, capability }) {
     const model = modelId ? this.get(modelId) : this.list().find(item => item.enabled && item.capabilities.includes(capability));

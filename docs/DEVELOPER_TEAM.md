@@ -1,5 +1,9 @@
 # Developer Team V1
 
+## Phase 6.2 runtime selection
+
+Runtime model calls resolve through validated process-local settings and the central Model Gateway. Development uses the `development` role and project research uses `research`; registered per-job overrides may select a different eligible model without changing authority. Provider and fallback events are observable. Local Ollama remains the default, OpenAI API is optional and separate from ChatGPT/Codex, and `auto` prefers healthy local service.
+
 ## Phase 6.1 task graph
 
 New development API jobs use an explicit graph: `DEV_PLAN → CODE_RESEARCH → DEVELOP → PATCH_EVALUATE → CODE_REVIEW → PATCH_APPROVAL → PATCH_APPLY → TEST → FINAL_REVIEW`. Dry runs omit approval, apply, and test. Each stage is a separate task with its own registered agent and dependencies. Failed review, patch evaluation, or tests append `CRITIQUE_REPAIR → CODE_RESEARCH → DEVELOP` and a new downstream graph within the bounded attempt limit. An exact changed patch receives a fresh fingerprint and approval. The accepted Phase 6 direct-job flow remains available for older callers.

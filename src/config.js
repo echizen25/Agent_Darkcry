@@ -19,6 +19,7 @@ export function loadConfig() {
     qdrantUrl: endpoint('QDRANT_URL', 'http://127.0.0.1:6333'),
     chatModel: process.env.OLLAMA_CHAT_MODEL || null,
     embeddingModel: process.env.OLLAMA_EMBEDDING_MODEL || null,
+    openaiModels: { general: process.env.OPENAI_GENERAL_MODEL || process.env.OPENAI_MODEL || null, planner: process.env.OPENAI_PLANNER_MODEL || null, research: process.env.OPENAI_RESEARCH_MODEL || null, development: process.env.OPENAI_DEVELOPMENT_MODEL || null, review: process.env.OPENAI_REVIEW_MODEL || null, critic: process.env.OPENAI_CRITIC_MODEL || null },
     collection: `${collectionPrefix}_knowledge`, chunkSize, chunkOverlap,
     topK: integer('KNOWLEDGE_TOP_K', 5, 1, 50),
     contextTokens: integer('KNOWLEDGE_CONTEXT_TOKENS', 3000, 1, 20000),

@@ -153,3 +153,34 @@ document.querySelector('#repoForm').addEventListener('submit', async event => {
   finally { button.disabled = false; }
 });
 refreshRepositories().catch(error => { repoStatus.textContent = error.message; });
+
+const aiStatus = document.querySelector('#aiStatus');
+const roles = ['general', 'planner', 'research', 'development', 'review', 'critic'];
+let aiModels = [];
+const option = model => { const item = document.createElement('option'); item.value = model.name; item.textContent = `${model.name} · ${model.provider}`; return item; };
+const badge = (element, state) => { const value = String(state || 'UNKNOWN'); element.textContent = value.replaceAll('_', ' '); element.className = `badge ${value.toLowerCase()}`; };
+const metrics = values => Object.entries(values).flatMap(([name, value]) => { const key = document.createElement('span'); key.textContent = name; const data = document.createElement('strong'); data.textContent = value ?? 'Unknown'; return [key, data]; });
+async function refreshAi(refresh = false) {
+  const [settingsData, modelsData, health, context] = await Promise.all([request('/api/ai/settings'), request('/api/ai/models'), request(`/api/ai/health${refresh ? '?refresh=true' : ''}`), request('/api/ai/context')]);
+  aiModels = modelsData.models;
+  document.querySelector('#runtimeProvider').value = settingsData.settings.runtimeProvider;
+  document.querySelector('#openaiStatus').textContent = `OpenAI API: ${health.openai.status.replaceAll('_', ' ')}`;
+  badge(document.querySelector('#codexStatus'), health.codexDevelopment.status); badge(document.querySelector('#headroomStatus'), health.headroom.status);
+  const healthSummary = document.querySelector('#healthSummary'); healthSummary.replaceChildren(...metrics({ Ollama: health.ollama.status, Qdrant: health.qdrant.status, Embedding: health.embedding.status, 'Knowledge collection': health.qdrant.available ? 'AVAILABLE' : 'UNAVAILABLE' }));
+  const contextSummary = document.querySelector('#contextSummary'); contextSummary.replaceChildren(...metrics({ 'Estimated tokens': context.estimatedTokens, Pressure: context.pressure, Files: context.files, Ranges: context.ranges, Symbols: context.symbols, 'Qdrant chunks': context.qdrantChunks }));
+  const chat = aiModels.filter(model => model.enabled && model.availability === 'AVAILABLE' && model.capabilities.includes('chat'));
+  const embeddings = aiModels.filter(model => model.enabled && model.availability === 'AVAILABLE' && model.capabilities.includes('embedding'));
+  const roleAssignments = document.querySelector('#roleAssignments'); roleAssignments.replaceChildren(...roles.map(role => { const label = document.createElement('label'); label.textContent = role[0].toUpperCase() + role.slice(1); const select = document.createElement('select'); select.dataset.role = role; select.replaceChildren(...chat.map(option)); select.value = settingsData.settings.roles[role] || ''; label.append(select); return label; }));
+  const embedding = document.querySelector('#embeddingModel'); embedding.replaceChildren(...embeddings.map(option)); embedding.value = settingsData.settings.embedding.model || '';
+  for (const id of ['labModelA', 'labModelB']) document.querySelector(`#${id}`).replaceChildren(...chat.map(option));
+  if (chat[1]) document.querySelector('#labModelB').value = chat[1].name;
+}
+document.querySelector('#refreshAi').onclick = () => refreshAi(true).then(() => { aiStatus.textContent = 'Health refreshed.'; }).catch(error => { aiStatus.textContent = error.message; });
+document.querySelector('#saveAi').onclick = async () => {
+  try { const roleValues = Object.fromEntries([...document.querySelectorAll('[data-role]')].map(select => [select.dataset.role, select.value])); await request('/api/ai/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runtimeProvider: document.querySelector('#runtimeProvider').value, roles: roleValues, embedding: { provider: 'ollama', model: document.querySelector('#embeddingModel').value } }) }); aiStatus.textContent = 'Runtime settings saved for this process.'; await refreshAi(); } catch (error) { aiStatus.textContent = error.message; }
+};
+document.querySelector('#runLab').onclick = async () => {
+  const button = document.querySelector('#runLab'); button.disabled = true; aiStatus.textContent = 'Running models sequentially…';
+  try { const data = await request('/api/ai/model-lab/compare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modelA: document.querySelector('#labModelA').value, modelB: document.querySelector('#labModelB').value, taskType: document.querySelector('#labTask').value }) }); document.querySelector('#labResults').replaceChildren(...data.results.map(item => { const card = document.createElement('div'); card.className = 'lab-result'; const title = document.createElement('h4'); title.textContent = item.model; const list = document.createElement('dl'); list.replaceChildren(...metrics({ Status: item.status, 'Contract valid': item.contractValid ? 'PASS' : 'FAIL', 'Schema valid': item.schemaValid ? 'PASS' : 'FAIL', 'Duration ms': item.durationMs, 'Input tokens': item.inputTokens ?? 'Unknown', 'Output tokens': item.outputTokens ?? 'Unknown' })); card.append(title, list); return card; })); aiStatus.textContent = 'Controlled comparison completed.'; } catch (error) { aiStatus.textContent = error.message; } finally { button.disabled = false; }
+};
+refreshAi().catch(error => { aiStatus.textContent = error.message; });

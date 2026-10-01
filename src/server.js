@@ -14,6 +14,10 @@ import { ModelRegistry } from './models/modelRegistry.js';
 import { ModelGateway } from './models/modelGateway.js';
 import { OllamaProvider } from './models/providers/ollamaProvider.js';
 import { modelRouter } from './models/modelRouter.js';
+import { AiSettingsService } from './models/aiSettingsService.js';
+import { ModelSelectionService } from './models/modelSelectionService.js';
+import { ModelLab } from './models/modelLab.js';
+import { AiControlCenter, aiRouter } from './models/aiControlCenter.js';
 import { EmbeddingGateway } from './knowledge/embeddingGateway.js';
 import { QdrantVectorStore } from './knowledge/qdrantVectorStore.js';
 import { KnowledgeHub } from './knowledge/knowledgeHub.js';
@@ -29,15 +33,22 @@ else if (config.embeddingModel) modelRegistry.get(config.chatModel).capabilities
 const ollama = new OllamaProvider({ baseUrl: config.ollamaUrl, timeoutMs: config.timeoutMs });
 const models = new ModelGateway({ registry: modelRegistry, timeoutMs: config.timeoutMs });
 models.registerProvider(ollama);
+const aiSettings = new AiSettingsService({ registry: modelRegistry, defaults: { runtimeProvider: 'local', roles: { general: config.chatModel, planner: config.chatModel, research: config.chatModel, development: config.chatModel, review: config.chatModel, critic: config.chatModel }, embedding: { provider: 'ollama', model: config.embeddingModel } } });
+const modelSelection = new ModelSelectionService({ registry: modelRegistry, settings: aiSettings, providers: models.providers });
+models.setSelectionService(modelSelection);
 const knowledge = new KnowledgeHub({ root, embedding: new EmbeddingGateway({ provider: ollama, model: config.embeddingModel }), store: new QdrantVectorStore({ baseUrl: config.qdrantUrl, timeoutMs: config.timeoutMs }), collection: config.collection, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, contextTokens: config.contextTokens });
+const core = createAgentCore({ knowledge, models });
+const modelLab = new ModelLab({ gateway: models, registry: modelRegistry });
+const aiControl = new AiControlCenter({ gateway: models, settings: aiSettings, selection: modelSelection, modelLab, knowledge, agentCore: core, config });
 const app = express();
 app.use(express.json({ limit: '128kb' }));
 app.use(express.static(path.join(root, 'public')));
 app.get('/', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/sources', sourceRouter(root));
 app.use('/api/repositories', repositoryRouter(root));
-app.use('/api/agent', agentRouter(createAgentCore({ knowledge, models })));
+app.use('/api/agent', agentRouter(core));
 app.use('/api/models', modelRouter(models));
+app.use('/api/ai', aiRouter(aiControl));
 app.use('/api/knowledge', knowledgeRouter(knowledge));
 app.post('/api/presentations/generate', async (req, res) => {
   try {

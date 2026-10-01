@@ -1,5 +1,7 @@
 # Context efficiency and model boundary
 
+The Phase 6.2 Control Center exposes the latest bounded context categories: estimated tokens, files, ranges, symbols, Qdrant chunks, pressure, and allowed relative paths. It does not expose file bodies, prompts, denied files, or credentials. Model-call usage distinguishes provider-reported input/output tokens from estimated input context; Headroom estimates remain a separate external diagnostic.
+
 `ContextBudgetManager` estimates tokens conservatively at roughly four characters per token. It ranks and deduplicates candidate context, enforces configured budgets, and reports `LOW`, `MEDIUM`, `HIGH`, or `TRUNCATED`. Mandatory security constraints remain outside optional compression. A task handoff contains artifact IDs and a short summary; specialists load the relevant section from `DEVELOPMENT_CONTEXT`, `PATCH_PROPOSAL`, review, or test artifacts. The TestAgent sends a short failure excerpt while the full bounded result remains retrievable.
 
 Default developer budget is 4,000 estimated tokens, with 8 files, 3 ranges per file, 3 Qdrant chunks, and 20 symbols. Environment variables are documented in `DEVELOPER_TEAM.md`. A job's `developmentState.metrics` records estimated tokens, context bytes, file/chunk counts, pressure, artifact references reused, model calls, and provider usage when returned. These metrics are diagnostics, not exact billing savings.
