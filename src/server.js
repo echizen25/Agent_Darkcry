@@ -22,6 +22,10 @@ import { EmbeddingGateway } from './knowledge/embeddingGateway.js';
 import { QdrantVectorStore } from './knowledge/qdrantVectorStore.js';
 import { KnowledgeHub } from './knowledge/knowledgeHub.js';
 import { knowledgeRouter } from './knowledge/knowledgeRouter.js';
+import { ProjectStore } from './projects/projectStore.js';
+import { ProjectService } from './projects/projectService.js';
+import { MissionService } from './missions/missionService.js';
+import { missionRouter } from './missions/missionRouter.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = path.join(root, 'generated');
@@ -40,6 +44,9 @@ const knowledge = new KnowledgeHub({ root, embedding: new EmbeddingGateway({ pro
 const core = createAgentCore({ knowledge, models });
 const modelLab = new ModelLab({ gateway: models, registry: modelRegistry });
 const aiControl = new AiControlCenter({ gateway: models, settings: aiSettings, selection: modelSelection, modelLab, knowledge, agentCore: core, config });
+const projectStore = new ProjectStore({ file: path.join(root, 'data', 'projects.json') });
+const projects = await new ProjectService({ store: projectStore, workspaces: core.workspaces, registry: modelRegistry, root }).init();
+const missions = new MissionService({ store: projectStore, projects, core, models });
 const app = express();
 app.use(express.json({ limit: '128kb' }));
 app.use(express.static(path.join(root, 'public')));
@@ -50,6 +57,7 @@ app.use('/api/agent', agentRouter(core));
 app.use('/api/models', modelRouter(models));
 app.use('/api/ai', aiRouter(aiControl));
 app.use('/api/knowledge', knowledgeRouter(knowledge));
+app.use('/api', missionRouter({ projects, missions }));
 app.post('/api/presentations/generate', async (req, res) => {
   try {
     const plan = planPresentation(req.body);

@@ -160,7 +160,7 @@ export class Orchestrator {
       const agent = this.agents.get(task.assignedAgent);
       const context = {
         task: { taskId: task.taskId, key: task.key, objective: task.objective, requiredInputs: task.requiredInputs, expectedOutputs: task.expectedOutputs, allowedTools: task.allowedTools, contextBudget: task.contextBudget, scope: task.scope },
-        jobId: job.jobId, attempt: task.attempt, projectState: { projectId: job.projectId }, retrievedKnowledge: [],
+        jobId: job.jobId, attempt: task.attempt, projectState: { projectId: job.projectId, providerMode: job.metadata.research?.providerMode, modelOverrides: job.metadata.research?.modelOverrides || {} }, retrievedKnowledge: [],
         artifactReferences: this.artifacts.list(job.jobId).map(item => item.artifactId),
         previousResults: job.tasks.filter(item => item.status === 'COMPLETED').map(item => ({ key: item.key, data: item.result?.data })),
         repairGuidance: task.repairGuidance, pendingState: task.pendingState || null,

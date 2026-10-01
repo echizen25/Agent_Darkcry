@@ -1,6 +1,6 @@
 # Job and task state machine
 
-Agent Core enforces these transitions for its demo workflow. Approval pause, approval resume, and denial to `BLOCKED` are implemented; cancellation remains future work. Invalid transitions must be rejected and logged; no state is inferred from a UI label alone.
+Agent Core enforces these transitions for its workflow. Approval pause, approval resume, and denial to `BLOCKED` are implemented. Phase 7 missions can cancel queued work or deny a pending approval; cancellation during an active model/tool call is recorded and waits for a safe boundary. Invalid transitions must be rejected and logged; no state is inferred from a UI label alone.
 
 | State | Meaning | Legal next states |
 | --- | --- | --- |

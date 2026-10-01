@@ -1,5 +1,9 @@
 # Developer Team V1
 
+## Phase 7 Mission Control
+
+Development missions wrap this existing team without adding another engine. Project configuration supplies the validated workspace, registered tests, repository association, knowledge scope, and model preferences. Dry run is the default. A write-capable run holds one workspace lock through exact approval, controlled apply, tests, and final review. Mission Control shows real specialist tasks, repair attempts, safe context metrics, artifacts, and final state. See [MISSION_CONTROL.md](MISSION_CONTROL.md).
+
 ## Phase 6.2 runtime selection
 
 Runtime model calls resolve through validated process-local settings and the central Model Gateway. Development uses the `development` role and project research uses `research`; registered per-job overrides may select a different eligible model without changing authority. Provider and fallback events are observable. Local Ollama remains the default, OpenAI API is optional and separate from ChatGPT/Codex, and `auto` prefers healthy local service.
