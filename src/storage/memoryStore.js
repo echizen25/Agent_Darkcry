@@ -5,6 +5,7 @@ export class MemoryStore {
   listJobs() { return [...this.jobs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   saveJob(job) { if (!this.jobs.has(job.jobId)) throw new Error('Unknown job.'); this.jobs.set(job.jobId, job); return job; }
   createArtifact(artifact) { if (this.artifacts.has(artifact.artifactId)) throw new Error('Duplicate artifact ID.'); this.artifacts.set(artifact.artifactId, artifact); return artifact; }
+  getArtifact(id) { return this.artifacts.get(id) || null; }
   listArtifacts(jobId) { return [...this.artifacts.values()].filter(item => item.jobId === jobId); }
   createApproval(approval) { this.approvals.set(approval.approvalId, approval); return approval; }
   getApproval(id) { return this.approvals.get(id) || null; }

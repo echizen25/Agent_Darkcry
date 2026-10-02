@@ -19,6 +19,10 @@ export function missionRouter({ projects, missions }) {
   router.get('/mission-runs/:id', (req, res) => { try { res.json(missions.detailRun(req.params.id, req.query.projectId)); } catch (error) { send(error, res); } });
   router.get('/mission-runs/:id/artifacts', (req, res) => { try { res.json({ artifacts: missions.artifacts(req.params.id, req.query.projectId) }); } catch (error) { send(error, res); } });
   router.get('/mission-runs/:id/approvals', (req, res) => { try { res.json({ approvals: missions.approvals(req.params.id, req.query.projectId) }); } catch (error) { send(error, res); } });
+  router.get('/mission-runs/:id/document', (req, res) => { try { res.json(missions.document(req.params.id, req.query.projectId)); } catch (error) { send(error, res); } });
+  router.get('/mission-runs/:id/document/preview', (req, res) => { try { res.json(missions.preview(req.params.id, req.query.projectId)); } catch (error) { send(error, res); } });
+  router.get('/mission-runs/:id/evidence', (req, res) => { try { res.json(missions.evidence(req.params.id, req.query.projectId)); } catch (error) { send(error, res); } });
+  router.get('/artifacts/:id/download', (req, res) => { try { const item = missions.download(req.params.id, req.query.projectId); res.type(item.mimeType).download(item.path, item.filename); } catch (error) { send(error, res); } });
   router.post('/mission-runs/:runId/approvals/:approvalId/approve', async (req, res) => { try { res.json(await missions.resolveApproval(req.params.runId, req.params.approvalId, 'APPROVED', req.body?.projectId)); } catch (error) { send(error, res); } });
   router.post('/mission-runs/:runId/approvals/:approvalId/reject', async (req, res) => { try { res.json(await missions.resolveApproval(req.params.runId, req.params.approvalId, 'DENIED', req.body?.projectId)); } catch (error) { send(error, res); } });
   return router;

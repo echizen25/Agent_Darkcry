@@ -2,6 +2,8 @@
 
 Agent Core enforces these transitions for its workflow. Approval pause, approval resume, and denial to `BLOCKED` are implemented. Phase 7 missions can cancel queued work or deny a pending approval; cancellation during an active model/tool call is recorded and waits for a safe boundary. Invalid transitions must be rejected and logged; no state is inferred from a UI label alone.
 
+Document jobs pause at `DOCUMENT_APPROVAL` after grounding, review, and deterministic QA pass. Approval resumes the same job only when the current IR revision fingerprint matches the pending approval. Rendering, artifact QA, and final review occur after approval. Denial enters `BLOCKED` and produces no final DOCX.
+
 | State | Meaning | Legal next states |
 | --- | --- | --- |
 | `QUEUED` | Goal or task accepted | `PLANNING`, `CANCELLED` |

@@ -14,11 +14,10 @@ Each phase preserves the current presentation and source endpoints and has a tes
 | 6.1 — Developer intelligence | Explicit specialist task graph, bounded code intelligence, hybrid context, local provider modes, token ledger, external tool and memory evaluation | Deterministic security and workflow tests, local disposable demos, full regression |
 | 6.2 — AI runtime control | Validated provider and role routing, health, usage/context visibility, installed-model discovery, controlled Model Lab | Offline routing/security/API tests, local inventory and model fixtures, full regression |
 | 7 — Mission Control | Persisted project workspace, project-scoped missions/runs, UI observability, approvals, and workspace concurrency | Project isolation, lifecycle, persistence, UI security, and full regression pass |
-| 8 — Reports | Document/report specialists and artifact validation | Report output and review pass |
-| 9 — Media | Script/storyboard/assets, FFmpeg-first production | Timed output and review pass |
+| 8 — Report and Document Team | Project-grounded Document missions, exact approval, deterministic editable DOCX, artifact QA and secure download | Offline grounding, renderer, isolation, approval, UI and full regression pass |
+| 9 — PowerPoint Production Team V2 | Adapt the existing planner/renderer to specialist tasks | Current PPTX path still passes; new slide checks pass |
 | 10 — Crypto analysis | Read-only market analysis and paper workflow | Evidence, assumptions, and risk checks pass; no live orders |
 | 11 — Computer use | Optional approved desktop adapters | Allowlist, logging, timeout, stop, and approval gates pass |
-| 12 — PowerPoint team V2 | Adapt the existing planner/renderer to specialist tasks | Current PPTX path still passes; new slide checks pass |
 
 SQLite and the Model Gateway belong in the earliest phase that actually needs durable orchestration or model calls. Ollama can be the first model provider; Qdrant is optional until chunk retrieval is useful. Defer live trading to a separately reviewed scope. Avoid migrating working source storage or PowerPoint rendering solely to fit proposed folders.
 

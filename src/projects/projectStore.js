@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const empty = () => ({ schemaVersion: 1, projects: [], missions: [], runs: [], activity: [] });
+const empty = () => ({ schemaVersion: 1, projects: [], missions: [], runs: [], activity: [], documentArtifacts: [] });
 const fail = (code, message, status = 500) => Object.assign(new Error(message), { code, status });
 const validState = value => value?.schemaVersion === 1 && ['projects', 'missions', 'runs', 'activity'].every(key => Array.isArray(value[key]));
 
@@ -12,7 +12,7 @@ export class ProjectStore {
     let text;
     try { const info = await stat(this.file); if (info.size > this.maxBytes) throw fail('PERSISTENCE_TOO_LARGE', 'Project metadata exceeds its size limit.'); text = await readFile(this.file, 'utf8'); }
     catch (error) { if (error.code === 'ENOENT') return this.state; throw error; }
-    try { const parsed = JSON.parse(text); if (!validState(parsed)) throw new Error('schema'); this.state = parsed; this.recoveryError = null; }
+    try { const parsed = JSON.parse(text); if (!validState(parsed)) throw new Error('schema'); parsed.documentArtifacts ||= []; if (!Array.isArray(parsed.documentArtifacts)) throw new Error('schema'); this.state = parsed; this.recoveryError = null; }
     catch { this.state = empty(); this.recoveryError = { code: 'PERSISTENCE_CORRUPT', message: 'Project metadata is malformed and was preserved for recovery.' }; }
     return this.state;
   }

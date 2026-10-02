@@ -41,7 +41,7 @@ const aiSettings = new AiSettingsService({ registry: modelRegistry, defaults: { 
 const modelSelection = new ModelSelectionService({ registry: modelRegistry, settings: aiSettings, providers: models.providers });
 models.setSelectionService(modelSelection);
 const knowledge = new KnowledgeHub({ root, embedding: new EmbeddingGateway({ provider: ollama, model: config.embeddingModel }), store: new QdrantVectorStore({ baseUrl: config.qdrantUrl, timeoutMs: config.timeoutMs }), collection: config.collection, chunkSize: config.chunkSize, chunkOverlap: config.chunkOverlap, topK: config.topK, contextTokens: config.contextTokens });
-const core = createAgentCore({ knowledge, models });
+const core = createAgentCore({ knowledge, models, root });
 const modelLab = new ModelLab({ gateway: models, registry: modelRegistry });
 const aiControl = new AiControlCenter({ gateway: models, settings: aiSettings, selection: modelSelection, modelLab, knowledge, agentCore: core, config });
 const projectStore = new ProjectStore({ file: path.join(root, 'data', 'projects.json') });
