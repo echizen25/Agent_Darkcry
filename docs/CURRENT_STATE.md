@@ -1,7 +1,7 @@
 # Current State
 
-- **Current phase:** Phase 8 Report and Document Production Team V1 implementation and review.
+- **Current phase:** Phase 9 PowerPoint Production Team V2, ready for user review.
 - **What currently works:** Existing presentation, ingestion, Agent Core, Model Gateway, persistent Knowledge Hub, controlled development, AI Runtime Control Center, plus persisted project registration and project-scoped research/development missions with run history, observability, approvals, activity, and workspace locking. See [MISSION_CONTROL.md](MISSION_CONTROL.md) and [PROJECT_WORKSPACE.md](PROJECT_WORKSPACE.md).
-- **Current task:** Validate document evidence, grounding, exact approval, deterministic DOCX rendering, artifact isolation, UI safety, and regressions.
-- **Next task:** User review of Phase 8 before any later-phase work.
-- **Known issues:** Active model/tool calls support cancellation only at safe boundaries. Project metadata has safe local persistence, while Agent Core job internals remain process local; saved runs retain bounded snapshots and artifact references. Code intelligence and review use conservative text heuristics rather than compiler or AST analysis. Grounding relevance remains lexical. Presentation generation does not use research yet; scanned PDFs need OCR.
+- **Current task:** Project-scoped presentation specialists, Narrative Plan, Storyboard, validated IR, grounding/review/repair, exact approval, editable PPTX, structural QA and artifact isolation. See [PRESENTATION_TEAM.md](PRESENTATION_TEAM.md).
+- **Next task:** User review of Phase 9; Phase 10 is not started.
+- **Known issues:** Active calls support cancellation only at safe boundaries. Pending jobs/previews remain process local; saved runs and file artifacts persist. Grounding is conservative lexical/numeric/date matching. V2 uses associated sources and stored repository documentation; semantic-only knowledge is deferred. Legacy generation remains deterministic. Overflow detection estimates density and slot capacity without PowerPoint's layout engine. No external image assets, thumbnails or manual slide revisions yet. Scanned PDFs need OCR. The bounded local model attempt timed out; deterministic integration passes independently.

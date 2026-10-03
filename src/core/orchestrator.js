@@ -32,7 +32,7 @@ export class Orchestrator {
     if (goal.length > 1000) throw error(400, 'Goal is too long.');
     if (options.maxIterations !== undefined && (!Number.isInteger(options.maxIterations) || options.maxIterations < 1)) throw error(400, 'maxIterations must be a positive integer.');
     const job = {
-      jobId: randomUUID(), projectId: options.projectId || randomUUID(), goal: goal.trim(), kind: ['research', 'development', 'document'].includes(options.kind) ? options.kind : 'demo', status: 'QUEUED',
+      jobId: randomUUID(), projectId: options.projectId || randomUUID(), goal: goal.trim(), kind: ['research', 'development', 'document', 'presentation'].includes(options.kind) ? options.kind : 'demo', status: 'QUEUED',
       createdAt: now(), startedAt: null, completedAt: null, tasks: [], currentTaskId: null,
       iteration: 0, maxIterations: options.maxIterations ?? 10, failureReason: null, metadata: options.metadata || {},
       issues: [], events: [], finalReview: null
@@ -78,6 +78,7 @@ export class Orchestrator {
     try {
       if (job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2) return await this.developmentGraph.start(job);
       if (job.kind === 'document') return await this.documentGraph.start(job);
+      if (job.kind === 'presentation') return await this.presentationGraph.start(job);
       this.change(job, job, 'PLANNING');
       const plan = await withTimeout(this.agents.get(this.workflow(job).plannerId).execute({ goal: job.goal, projectId: job.projectId, research: job.metadata.research, development: job.metadata.development }), 30000);
       if (plan.status !== 'completed') throw new Error('Planner did not complete.');
@@ -126,11 +127,12 @@ export class Orchestrator {
     const task = job.tasks.find(item => item.taskId === approval.taskId);
     if (approval.status !== 'PENDING' || job.status !== 'WAITING_FOR_APPROVAL' || task?.status !== 'WAITING_FOR_APPROVAL' || task.pendingApprovalId !== approvalId) throw error(409, 'Job is not waiting for this approval.');
     if (job.kind === 'document') await this.documentGraph.validateApproval(job, approval);
+    if (job.kind === 'presentation') await this.presentationGraph.validateApproval(job, approval);
     this.approvals.resolve(approvalId, 'APPROVED'); this.event(job, 'APPROVAL_APPROVED', task, { approvalId });
     this.change(job, task, task.approvalReturnState, task.approvalReturnState);
     this.change(job, job, job.approvalReturnState, job.approvalReturnState);
     this.active.add(job.jobId);
-    try { return job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2 ? await this.developmentGraph.continue(job, task) : job.kind === 'document' ? await this.documentGraph.continue(job, task) : await this.continueJob(job, task); }
+    try { return job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2 ? await this.developmentGraph.continue(job, task) : job.kind === 'document' ? await this.documentGraph.continue(job, task) : job.kind === 'presentation' ? await this.presentationGraph.continue(job, task) : await this.continueJob(job, task); }
     catch (cause) { if (job.kind === 'development' && job.metadata.development?.orchestrationVersion === 2 && job.developmentState && job.status === 'RUNNING') return this.developmentGraph.fail(job, task, cause.code || 'STAGE_FAILED'); if (['RUNNING', 'VALIDATING', 'REVISING'].includes(task.status)) this.change(job, task, 'FAILED'); if (job.status === 'RUNNING') this.fail(job, cause.message); throw cause; }
     finally { job.currentTaskId = null; this.active.delete(job.jobId); this.store.saveJob(job); }
   }

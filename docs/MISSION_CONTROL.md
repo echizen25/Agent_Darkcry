@@ -1,6 +1,8 @@
 # Mission Control
 
-Mission Control is the project-scoped web interface over the existing Agent Core and Orchestrator. A mission records a user objective; each execution creates a run snapshot with task status, actual model calls, context metrics, artifact references, approvals, tests, and final state. Supported modes are `RESEARCH`, `DEVELOPMENT`, and `DOCUMENT`. Development starts as a dry run unless the user explicitly clears that option; document release always pauses for approval.
+Mission Control is the project-scoped web interface over the existing Agent Core and Orchestrator. A mission records a user objective; each execution creates a run snapshot with task status, actual model calls, context metrics, artifact references, approvals, tests, and final state. Supported modes are `RESEARCH`, `DEVELOPMENT`, `DOCUMENT` and `PRESENTATION`. Development starts as a dry run unless the user explicitly clears that option; document and presentation release always pause for approval.
+
+Presentation missions expose optional type/title/audience/language/tone/period/slide count/duration/theme/topics, actual task progression, Narrative Plan and Storyboard, expandable safe slide cards, evidence, QA/review, revision fingerprints, approval and PPTX downloads. Polling reads actual Orchestrator task state. Preview uses structured DOM text, not model HTML or a pixel-perfect thumbnail. See [PRESENTATION_TEAM.md](PRESENTATION_TEAM.md).
 
 ## Lifecycle
 

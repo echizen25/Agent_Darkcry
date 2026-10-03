@@ -4,6 +4,8 @@ Agent Core enforces these transitions for its workflow. Approval pause, approval
 
 Document jobs pause at `DOCUMENT_APPROVAL` after grounding, review, and deterministic QA pass. Approval resumes the same job only when the current IR revision fingerprint matches the pending approval. Rendering, artifact QA, and final review occur after approval. Denial enters `BLOCKED` and produces no final DOCX.
 
+Presentation jobs use these transitions and pause at `PRESENTATION_APPROVAL` after grounding/review/slide QA. Approval recomputes the IR fingerprint and checks project/mission/run/revision binding before resuming PPTX_RENDER → PPTX_QA → FINAL_REVIEW. Failed QA/final review does not register a downloadable PPTX. Denial blocks render. Targeted critic/research/revision tasks are bounded to two repairs; identical content stops with no progress.
+
 | State | Meaning | Legal next states |
 | --- | --- | --- |
 | `QUEUED` | Goal or task accepted | `PLANNING`, `CANCELLED` |

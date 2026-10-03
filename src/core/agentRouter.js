@@ -26,6 +26,8 @@ import { ContextBudgetManager } from '../development/contextBudgetManager.js';
 import { DevelopmentTaskGraph } from './developmentTaskGraph.js';
 import { createDocumentAgents } from '../agents/documentAgents.js';
 import { DocumentTaskGraph } from './documentTaskGraph.js';
+import { createPresentationAgents } from '../agents/presentationAgents.js';
+import { PresentationTaskGraph } from './presentationTaskGraph.js';
 
 export function createAgentCore({ knowledge = null, models = null, workspaces = null, testCommands = null, root = process.cwd() } = {}) {
   const store = new MemoryStore();
@@ -45,8 +47,9 @@ export function createAgentCore({ knowledge = null, models = null, workspaces = 
   }
   if (models) { createDevelopmentAgents({ models, workspaces, evaluation: evaluationCore }).agents.forEach(agent => agents.register(agent)); createDevelopmentV2Agents({ models, workspaces, intelligence, knowledge, budgetManager, evaluation: evaluationCore }).agents.forEach(agent => agents.register(agent)); createDocumentAgents({ models, root }).forEach(agent => agents.register(agent)); }
   const approvals = new ApprovalService(store);
+  createPresentationAgents({ models, root, budgetManager }).forEach(agent => agents.register(agent));
   const toolService = new ToolExecutionService({ registry, policy: new PermissionPolicy(), approvals, store });
-  const core = new Orchestrator({ store, agents, artifacts, evaluationCore, toolService, approvals }); core.workspaces = workspaces; core.testCommands = testCommands; core.models = models; core.intelligence = intelligence; core.contextBudget = budgetManager; core.developmentGraph = new DevelopmentTaskGraph(core, { budgetManager, intelligence }); core.documentGraph = new DocumentTaskGraph(core, { root }); return core;
+  const core = new Orchestrator({ store, agents, artifacts, evaluationCore, toolService, approvals }); core.workspaces = workspaces; core.testCommands = testCommands; core.models = models; core.intelligence = intelligence; core.contextBudget = budgetManager; core.developmentGraph = new DevelopmentTaskGraph(core, { budgetManager, intelligence }); core.documentGraph = new DocumentTaskGraph(core, { root }); core.presentationGraph = new PresentationTaskGraph(core, { root }); return core;
 }
 
 export function agentRouter(core) {

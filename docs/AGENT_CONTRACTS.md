@@ -4,6 +4,8 @@ These are design contracts. Agent Core V1 implements a subset with in-memory rec
 
 ## Task
 
+Presentation tasks retain the existing contract, with explicit project scope, dependencies, empty tool allowlists, bounded model input, stage acceptance checks and registered specialist IDs. Specification/Narrative Plan/Storyboard/IR and QA records are structured artifacts; renderer output is an approved native PPTX file, never a model binary. Approval binds mission/run/project/revision/canonical IR fingerprint. See [PRESENTATION_IR.md](PRESENTATION_IR.md) and [PRESENTATION_QA.md](PRESENTATION_QA.md).
+
 | Field | Meaning |
 | --- | --- |
 | `taskId`, `jobId`, `projectId` | Identity and scope |

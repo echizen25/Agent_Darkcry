@@ -1,4 +1,5 @@
 import pptxgen from 'pptxgenjs';
+import { THEMES, blockText } from './presentations/presentationCore.js';
 
 const themes = {
   modern: { bg: 'F7F9FC', ink: '172B4D', accent: '2463EB', soft: 'E6EDFF' },
@@ -61,6 +62,40 @@ export async function renderPresentation(plan, filePath) {
         text(slide, point, 1.75, 1.83 + i * 1.35, 10.2, 0.62, 24);
       });
     }
+  });
+  await pptx.writeFile({ fileName: filePath });
+}
+
+// V2 uses the same PPTX library and native objects, with bounded IR layouts.
+export async function renderPresentationIR(ir, filePath, evidencePack) {
+  const pptx = new pptxgen(), t = THEMES[ir.theme];
+  pptx.layout = 'LAYOUT_WIDE'; pptx.title = ir.metadata.title; pptx.author = 'PowerPoint Agent';
+  pptx.theme = { headFontFace: t.font, bodyFontFace: t.font, lang: 'en-US' };
+  const text = (slide, value, x, y, w, h, size = t.bodySize, options = {}) => slide.addText(String(value ?? ''), { x, y, w, h, fontFace: t.font, fontSize: size, color: t.ink, margin: 0, valign: 'mid', breakLine: false, ...options });
+  ir.slides.forEach((item, index) => {
+    const slide = pptx.addSlide(), layout = item.visualIntent.layout;
+    slide.background = { color: t.background };
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: .12, h: 7.5, fill: { color: t.accent }, line: { color: t.accent } });
+    const hero = ['TITLE', 'SECTION', 'CLOSING'].includes(layout);
+    text(slide, item.title, .75, hero ? 1.4 : .55, 11.8, hero ? 1.3 : .8, hero ? 40 : t.titleSize, { bold: true });
+    if (item.subtitle) text(slide, item.subtitle, .75, hero ? 2.85 : 1.32, 11.8, .45, 16);
+    const start = hero ? 3.65 : 1.95, available = hero ? 2.55 : 4.25;
+    const columns = layout === 'TITLE_TWO_COLUMN', count = Math.max(1, item.blocks.length), rows = columns ? Math.ceil(count / 2) : count;
+    item.blocks.forEach((b, bi) => {
+      const x = columns ? .75 + (bi % 2) * 6 : .75, y = start + (columns ? Math.floor(bi / 2) : bi) * available / rows, w = columns ? 5.5 : 11.8, h = available / rows - .15;
+      if (b.type === 'TABLE') slide.addTable([b.columns, ...b.rows], { x, y, w, h, fontFace: t.font, fontSize: 14, color: t.ink, border: { color: 'D0D9E5', pt: 1 }, fill: 'FFFFFF', margin: .08, rowH: Math.min(.45, h / (b.rows.length + 1)), autoPage: false, bold: false });
+      else if (b.type === 'CHART') { const type = ['BAR', 'COLUMN'].includes(b.chartType) ? pptx.ChartType.bar : b.chartType === 'LINE' ? pptx.ChartType.line : b.chartType === 'PIE' ? pptx.ChartType.pie : pptx.ChartType.doughnut; slide.addChart(type, b.series.map(s => ({ name: s.name, labels: b.categories, values: s.values })), { x, y, w, h, catAxisLabelFontFace: t.font, catAxisLabelFontSize: 12, valAxisLabelFontSize: 12, showLegend: b.series.length > 1, showValue: true, chartColors: [t.accent, '155E75', '936B39', '465A73'], barDir: b.chartType === 'BAR' ? 'bar' : 'col', showTitle: false }); }
+      else if (b.type === 'METRIC') { text(slide, b.value, x, y, w, h * .65, Math.min(48, h * 30), { color: t.accent, bold: true }); text(slide, b.label, x, y + h * .65, w, h * .35, 19); }
+      else if (b.type === 'IMAGE_PLACEHOLDER') { slide.addShape(pptx.ShapeType.rect, { x, y, w, h, fill: { color: t.soft }, line: { color: t.accent, dashType: 'dash' } }); text(slide, `Image placeholder: ${b.label || 'Approved asset needed'}`, x + .2, y + .2, w - .4, h - .4, 18, { align: 'center' }); }
+      else if (b.type === 'SHAPE') slide.addShape(b.shape === 'LINE' ? pptx.ShapeType.line : b.shape === 'CIRCLE' ? pptx.ShapeType.ellipse : pptx.ShapeType.rect, { x, y, w, h: b.shape === 'LINE' ? 0 : h, fill: { color: t.soft }, line: { color: t.accent } });
+      else if (b.type === 'BULLETS' && ['TITLE_PROCESS', 'TITLE_TIMELINE'].includes(layout)) { b.items.forEach((entry, i) => { const stepW = w / b.items.length, sx = x + i * stepW; slide.addShape(pptx.ShapeType.roundRect, { x: sx, y, w: stepW - .2, h, fill: { color: t.soft }, line: { color: t.soft } }); text(slide, typeof entry === 'string' ? entry : [entry.date, entry.label, entry.description].filter(Boolean).join('\n'), sx + .15, y + .2, stepW - .5, h - .4, 18); }); }
+      else if (b.type === 'BULLETS') b.items.forEach((entry, i) => text(slide, typeof entry === 'string' ? entry : [entry.date, entry.label, entry.description].filter(Boolean).join(' — '), x + .15, y + i * h / b.items.length, w - .3, h / b.items.length - .06, 20, { bullet: { indent: 14 }, hanging: 3 }));
+      else { if (b.type === 'CALLOUT' || b.type === 'QUOTE') slide.addShape(pptx.ShapeType.rect, { x, y, w, h, fill: { color: t.soft }, line: { color: t.soft } }); text(slide, blockText(b), x + .12, y + .08, w - .24, h - .16, b.type === 'FOOTNOTE' ? 12 : 21, { italic: b.type === 'QUOTE' }); }
+    });
+    const sources = item.evidenceRefs.map(id => evidencePack.items.find(e => e.id === id)).filter(Boolean);
+    text(slide, sources.map(e => e.provenance.filename).filter((v, i, a) => a.indexOf(v) === i).join(' · ').slice(0, 150), .75, 6.85, 10.7, .3, 9, { color: t.accent });
+    if (index) text(slide, index + 1, 12, 6.85, .55, .3, 10, { align: 'right', color: t.accent });
+    slide.addNotes([...(item.speakerNotes || []), 'Sources:', ...sources.map(e => `${e.id}: ${e.provenance.filename} — ${e.text}`)].join('\n'));
   });
   await pptx.writeFile({ fileName: filePath });
 }
