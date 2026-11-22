@@ -1,7 +1,9 @@
 # Current State
 
-- **Current phase:** Phase 9 PowerPoint Production Team V2, ready for user review.
+- **Current phase:** Phase 10 Media Production Team V1 with read-only Agent Presence, implemented for offline review.
 - **What currently works:** Existing presentation, ingestion, Agent Core, Model Gateway, persistent Knowledge Hub, controlled development, AI Runtime Control Center, plus persisted project registration and project-scoped research/development missions with run history, observability, approvals, activity, and workspace locking. See [MISSION_CONTROL.md](MISSION_CONTROL.md) and [PROJECT_WORKSPACE.md](PROJECT_WORKSPACE.md).
-- **Current task:** Project-scoped presentation specialists, Narrative Plan, Storyboard, validated IR, grounding/review/repair, exact approval, editable PPTX, structural QA and artifact isolation. See [PRESENTATION_TEAM.md](PRESENTATION_TEAM.md).
-- **Next task:** User review of Phase 9; Phase 10 is not started.
+- **Current task:** Review Media V1 packages, provider/asset security, exact approval and Agent Presence. Phase 9 remains preserved; see [PRESENTATION_TEAM.md](PRESENTATION_TEAM.md).
+- **Next task:** Review Phase 10 offline fixtures and limitations. Production media adapters remain NOT_CONFIGURED. Do not begin Phase 10.5 without separate scope. See [MEDIA_TEAM.md](MEDIA_TEAM.md) and [AGENT_PRESENCE.md](AGENT_PRESENCE.md).
 - **Known issues:** Active calls support cancellation only at safe boundaries. Pending jobs/previews remain process local; saved runs and file artifacts persist. Grounding is conservative lexical/numeric/date matching. V2 uses associated sources and stored repository documentation; semantic-only knowledge is deferred. Legacy generation remains deterministic. Overflow detection estimates density and slot capacity without PowerPoint's layout engine. No external image assets, thumbnails or manual slide revisions yet. Scanned PDFs need OCR. The bounded local model attempt timed out; deterministic integration passes independently.
+
+Phase 10 produces approved JSON media packages with validated registered assets and assembly plans, not composed MP4s. Fake PNG/WAV generation is test-only; no paid adapter is enabled. Presence projects actual registered tasks in the current session. Email, Social, Trading and Business departments are NOT_IMPLEMENTED.

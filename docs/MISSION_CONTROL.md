@@ -1,6 +1,6 @@
 # Mission Control
 
-Mission Control is the project-scoped web interface over the existing Agent Core and Orchestrator. A mission records a user objective; each execution creates a run snapshot with task status, actual model calls, context metrics, artifact references, approvals, tests, and final state. Supported modes are `RESEARCH`, `DEVELOPMENT`, `DOCUMENT` and `PRESENTATION`. Development starts as a dry run unless the user explicitly clears that option; document and presentation release always pause for approval.
+Mission Control is the project-scoped web interface over the existing Agent Core and Orchestrator. A mission records a user objective; each execution creates a run snapshot with task status, actual model calls, context metrics, artifact references, approvals, tests, and final state. Supported modes are `RESEARCH`, `DEVELOPMENT`, `DOCUMENT`, `PRESENTATION` and `MEDIA`. Development starts as a dry run unless the user explicitly clears that option; document and presentation release always pause for approval.
 
 Presentation missions expose optional type/title/audience/language/tone/period/slide count/duration/theme/topics, actual task progression, Narrative Plan and Storyboard, expandable safe slide cards, evidence, QA/review, revision fingerprints, approval and PPTX downloads. Polling reads actual Orchestrator task state. Preview uses structured DOM text, not model HTML or a pixel-perfect thumbnail. See [PRESENTATION_TEAM.md](PRESENTATION_TEAM.md).
 
@@ -17,3 +17,7 @@ Pending patch approval comes from the existing ApprovalService. Resolution verif
 ## Degraded dependencies
 
 Mission Control never starts Docker, Qdrant, Ollama, or another service. Local code discovery remains available when Qdrant is unavailable. Knowledge-dependent work returns its existing structured unavailable or blocked result.
+
+## Phase 10 media and presence
+
+MEDIA extends the same project/run/task/approval UI with bounded requirements, creative/script/scenes/shots/assets/assembly, provider configuration, consistency review, QA, revision feedback and manifest download. Generation approval is distinct from final package approval. PNG/WAV previews use validated opaque asset endpoints. No composed MP4 or visual/audio inspection is claimed. Read-only Agent Presence polls every five seconds while visible and selected, scoped to the project and current session; it is not a virtual office. See [MEDIA_TEAM.md](MEDIA_TEAM.md) and [AGENT_PRESENCE.md](AGENT_PRESENCE.md).

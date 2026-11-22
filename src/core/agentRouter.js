@@ -27,9 +27,11 @@ import { DevelopmentTaskGraph } from './developmentTaskGraph.js';
 import { createDocumentAgents } from '../agents/documentAgents.js';
 import { DocumentTaskGraph } from './documentTaskGraph.js';
 import { createPresentationAgents } from '../agents/presentationAgents.js';
+import { createMediaAgents } from '../agents/mediaAgents.js';
+import { MediaTaskGraph } from './mediaTaskGraph.js';
 import { PresentationTaskGraph } from './presentationTaskGraph.js';
 
-export function createAgentCore({ knowledge = null, models = null, workspaces = null, testCommands = null, root = process.cwd() } = {}) {
+export function createAgentCore({ knowledge = null, models = null, workspaces = null, testCommands = null, root = process.cwd(), mediaGateway, mediaProviderId = null } = {}) {
   const store = new MemoryStore();
   const agents = registerDemoAgents(new AgentRegistry());
   const artifacts = new ArtifactRegistry(store);
@@ -48,18 +50,21 @@ export function createAgentCore({ knowledge = null, models = null, workspaces = 
   if (models) { createDevelopmentAgents({ models, workspaces, evaluation: evaluationCore }).agents.forEach(agent => agents.register(agent)); createDevelopmentV2Agents({ models, workspaces, intelligence, knowledge, budgetManager, evaluation: evaluationCore }).agents.forEach(agent => agents.register(agent)); createDocumentAgents({ models, root }).forEach(agent => agents.register(agent)); }
   const approvals = new ApprovalService(store);
   createPresentationAgents({ models, root, budgetManager }).forEach(agent => agents.register(agent));
+  createMediaAgents({ models, budgetManager }).forEach(agent => agents.register(agent));
   const toolService = new ToolExecutionService({ registry, policy: new PermissionPolicy(), approvals, store });
-  const core = new Orchestrator({ store, agents, artifacts, evaluationCore, toolService, approvals }); core.workspaces = workspaces; core.testCommands = testCommands; core.models = models; core.intelligence = intelligence; core.contextBudget = budgetManager; core.developmentGraph = new DevelopmentTaskGraph(core, { budgetManager, intelligence }); core.documentGraph = new DocumentTaskGraph(core, { root }); core.presentationGraph = new PresentationTaskGraph(core, { root }); return core;
+  const core = new Orchestrator({ store, agents, artifacts, evaluationCore, toolService, approvals }); core.workspaces = workspaces; core.testCommands = testCommands; core.models = models; core.intelligence = intelligence; core.contextBudget = budgetManager; core.developmentGraph = new DevelopmentTaskGraph(core, { budgetManager, intelligence }); core.documentGraph = new DocumentTaskGraph(core, { root }); core.presentationGraph = new PresentationTaskGraph(core, { root }); core.mediaGraph = new MediaTaskGraph(core, { root, gateway: mediaGateway, providerId: mediaProviderId }); return core;
 }
 
 export function agentRouter(core) {
   const router = Router();
+  router.use('/jobs/:id', (req, res, next) => { try { if (core.getJob(req.params.id).kind === 'media') return res.status(404).json({ error: 'Use project-scoped media mission endpoints.' }); next(); } catch (error) { next(); } });
+  router.use('/approvals/:id', (req, res, next) => { try { const a = core.approvals.get(req.params.id); if (core.getJob(a.jobId).kind === 'media') return res.status(404).json({ error: 'Use project-scoped media approval endpoints.' }); next(); } catch (error) { next(); } });
   const respondError = (error, res) => res.status(error.status || 500).json({ error: error.status ? error.message : 'Agent Core execution failed.' });
   router.post('/jobs', (req, res) => {
     try { res.status(201).json(core.createJob(req.body?.goal)); }
     catch (error) { respondError(error, res); }
   });
-  router.get('/jobs', (_req, res) => res.json({ jobs: core.listJobs() }));
+  router.get('/jobs', (_req, res) => res.json({ jobs: core.listJobs().filter(job => core.getJob(job.jobId).kind !== 'media') }));
   router.get('/jobs/:id', (req, res) => {
     try { res.json(core.details(req.params.id)); }
     catch (error) { respondError(error, res); }
@@ -68,7 +73,7 @@ export function agentRouter(core) {
     try { res.json(await core.run(req.params.id)); }
     catch (error) { respondError(error, res); }
   });
-  router.get('/approvals', (_req, res) => res.json({ approvals: core.approvals.list() }));
+  router.get('/approvals', (_req, res) => res.json({ approvals: core.approvals.list().filter(a => core.getJob(a.jobId).kind !== 'media') }));
   router.get('/approvals/:id', (req, res) => { try { res.json(core.approvals.get(req.params.id)); } catch (error) { respondError(error, res); } });
   router.post('/approvals/:id/approve', async (req, res) => { try { res.json(await core.approve(req.params.id)); } catch (error) { respondError(error, res); } });
   router.post('/approvals/:id/deny', (req, res) => { try { res.json(core.deny(req.params.id)); } catch (error) { respondError(error, res); } });

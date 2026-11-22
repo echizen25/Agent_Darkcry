@@ -16,9 +16,11 @@ Each phase preserves the current presentation and source endpoints and has a tes
 | 7 — Mission Control | Persisted project workspace, project-scoped missions/runs, UI observability, approvals, and workspace concurrency | Project isolation, lifecycle, persistence, UI security, and full regression pass |
 | 8 — Report and Document Team | Project-grounded Document missions, exact approval, deterministic editable DOCX, artifact QA and secure download | Offline grounding, renderer, isolation, approval, UI and full regression pass |
 | 9 — PowerPoint Production Team V2 | Implemented project-scoped specialists, IR, grounding, approval, native editable PPTX and Mission Control | Deterministic integration and legacy regression pass; awaiting user review |
-| 10 — Media / Image / Video Production Team | Future phase; not started | Separate scope and user authorization required |
+| 10 — Media / Image / Video Production Team | Implemented V1 media packages, provider/asset contracts and read-only presence | Offline tests and exact approval; production adapters remain unconfigured |
 | 11 — Computer use | Optional approved desktop adapters | Allowlist, logging, timeout, stop, and approval gates pass |
 
 SQLite and the Model Gateway belong in the earliest phase that actually needs durable orchestration or model calls. Ollama can be the first model provider; Qdrant is optional until chunk retrieval is useful. Defer live trading to a separately reviewed scope. Avoid migrating working source storage or PowerPoint rendering solely to fit proposed folders.
 
 Decisions for review before implementation: persistence location and backup policy; whether local repository paths may extend outside the workspace; default model and per-task budgets; which controlled actions require standing authorization; and whether optional external providers or desktop adapters are permitted for a project.
+
+Phase 10.5 virtual office: future, NOT_STARTED. It may consume the read-only AgentPresence schema; avatars/rooms/animation are UI configuration, never orchestration authority. Email, Social and Trading teams remain NOT_IMPLEMENTED.
